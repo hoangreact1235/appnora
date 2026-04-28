@@ -5,7 +5,7 @@ export function getDaysInMonth(month: number, year: number) {
   return new Date(year, month, 0).getDate();
 }
 
-export function getFirstDayOfWeek(month, year) {
+export function getFirstDayOfWeek(month: number, year: number) {
   // Trả về thứ trong tuần của ngày đầu tháng (0=Chủ Nhật, 1=Thứ Hai,...)
   return new Date(year, month, 1).getDay();
 }
