@@ -137,7 +137,7 @@ export default function Home() {
         onLogout={handleLogout}
         onShowCreateUser={() => setShowCreateUser(true)}
         onShowNotification={() => setShowNotification(true)}
-        notificationCount={notifications.filter(n => !n.read).length}
+        notificationCount={notifications.filter((n: { read: boolean }) => !n.read).length}
       />
       <main className="flex-1 w-full px-0 py-6">
         <div className="bg-white rounded-xl shadow p-2 md:p-6 w-full">
