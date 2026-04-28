@@ -13,7 +13,7 @@ interface HeaderProps {
   notificationCount?: number;
 }
 
-const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, admin, onLogout, onShowCreateUser, onShowNotification, notificationCount }) => {
+const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, admin, onLogout, onShowCreateUser, onShowNotification, notificationCount = 0 }) => {
   // Xác định tên hiển thị
   let displayName = '';
   if (admin) {
