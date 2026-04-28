@@ -1,6 +1,20 @@
 import React from "react";
 
-export default function NotificationPopup({ notifications, onClose, onClickNotification }) {
+interface Notification {
+  id: number;
+  type: string;
+  name: string;
+  time: string;
+  read: boolean;
+}
+
+interface NotificationPopupProps {
+  notifications: Notification[];
+  onClose: () => void;
+  onClickNotification: (n: Notification) => void;
+}
+
+export default function NotificationPopup({ notifications, onClose, onClickNotification }: NotificationPopupProps) {
   return (
     <div className="fixed top-8 right-8 z-50">
       <div className="relative bg-white rounded-2xl shadow p-4 w-[350px]">
