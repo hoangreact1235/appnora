@@ -45,7 +45,16 @@ export default function Home() {
   }, []);
 
   // Hàm thêm order mới
-  function addOrder(type, order) {
+  function addOrder(type: 'design' | 'video', order: {
+    id?: number;
+    title: string;
+    status: string;
+    deadline: string;
+    size: string;
+    version: string;
+    content: string;
+    [key: string]: any;
+  }) {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     let updatedOrders;
