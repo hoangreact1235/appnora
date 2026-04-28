@@ -167,7 +167,7 @@ export default function Home() {
           notifications={notifications}
           onClose={() => setShowNotification(false)}
           onClickNotification={n => {
-            setNotifications(notifications.map(x => x.id === n.id ? { ...x, read: true } : x));
+            setNotifications(notifications.map((x: { id: number; read: boolean }) => x.id === n.id ? { ...x, read: true } : x));
             setShowNotification(false);
             // TODO: scroll tới order tương ứng
           }}
