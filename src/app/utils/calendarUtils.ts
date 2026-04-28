@@ -1,6 +1,6 @@
 import React from "react";
 
-export function getDaysInMonth(month, year) {
+export function getDaysInMonth(month: number, year: number) {
   // month: 1-12
   return new Date(year, month, 0).getDate();
 }
