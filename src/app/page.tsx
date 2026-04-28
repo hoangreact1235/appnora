@@ -61,11 +61,11 @@ export default function Home() {
     if (type === 'design') {
       updatedOrders = [{ ...order, id: Date.now() }, ...ordersDesign];
       localStorage.setItem('ordersDesign', JSON.stringify(updatedOrders));
-      setOrdersDesign(updatedOrders);
+      setOrdersDesign(JSON.parse(localStorage.getItem('ordersDesign') || '[]'));
     } else {
       updatedOrders = [{ ...order, id: Date.now() }, ...ordersVideo];
       localStorage.setItem('ordersVideo', JSON.stringify(updatedOrders));
-      setOrdersVideo(updatedOrders);
+      setOrdersVideo(JSON.parse(localStorage.getItem('ordersVideo') || '[]'));
     }
     // Thông báo
     const updatedNotifications = [
@@ -79,13 +79,7 @@ export default function Home() {
       ...notifications
     ];
     localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-    // Đảm bảo tab hiện tại cũng đồng bộ lại state từ localStorage (fix cho cả không đăng nhập)
-    setTimeout(() => {
-      setOrdersDesign(JSON.parse(localStorage.getItem('ordersDesign') || '[]'));
-      setOrdersVideo(JSON.parse(localStorage.getItem('ordersVideo') || '[]'));
-      setNotifications(JSON.parse(localStorage.getItem('notifications') || '[]'));
-    }, 0);
+    setNotifications(JSON.parse(localStorage.getItem('notifications') || '[]'));
   }
 
   function handleLogout() {
