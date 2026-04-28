@@ -35,7 +35,7 @@ export default function Home() {
 
   // Lắng nghe sự kiện storage để đồng bộ giữa các tab
   useEffect(() => {
-    function syncFromStorage(e) {
+    function syncFromStorage(e: StorageEvent) {
       if (e.key === 'ordersDesign') setOrdersDesign(JSON.parse(e.newValue || '[]'));
       if (e.key === 'ordersVideo') setOrdersVideo(JSON.parse(e.newValue || '[]'));
       if (e.key === 'notifications') setNotifications(JSON.parse(e.newValue || '[]'));
