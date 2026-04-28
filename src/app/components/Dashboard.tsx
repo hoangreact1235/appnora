@@ -2,6 +2,21 @@
 import React from "react";
 import DashboardCard from "./DashboardCard";
 
+interface Order {
+  id: number;
+  title: string;
+  status: string;
+  deadline: string;
+  size: string;
+  version: string;
+  content: string;
+}
+
+interface DashboardProps {
+  type?: "design" | "video";
+  orders: Order[];
+}
+
 // Danh sách order mẫu dạng card
 const ordersDesign = [
   {
@@ -81,7 +96,7 @@ const ordersVideo = [
   }
 ];
 
-export default function Dashboard({ type = "video", orders = [] }) {
+export default function Dashboard({ type = "video", orders = [] }: DashboardProps) {
   return (
     <section className="w-full mt-12 mb-16 px-2 sm:px-4 bg-transparent">
       <h2 className="text-2xl font-bold text-[#D81B60] mb-8 text-left uppercase">
