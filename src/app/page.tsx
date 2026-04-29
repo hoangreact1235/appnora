@@ -59,13 +59,13 @@ export default function Home() {
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     let updatedOrders;
     if (type === 'design') {
-      updatedOrders = [{ ...order, id: Date.now() }, ...ordersDesign];
+      updatedOrders = [{ ...order, id: Date.now() }, ...JSON.parse(localStorage.getItem('ordersDesign') || '[]')];
       localStorage.setItem('ordersDesign', JSON.stringify(updatedOrders));
-      setOrdersDesign(JSON.parse(localStorage.getItem('ordersDesign') || '[]'));
+      setOrdersDesign(updatedOrders);
     } else {
-      updatedOrders = [{ ...order, id: Date.now() }, ...ordersVideo];
+      updatedOrders = [{ ...order, id: Date.now() }, ...JSON.parse(localStorage.getItem('ordersVideo') || '[]')];
       localStorage.setItem('ordersVideo', JSON.stringify(updatedOrders));
-      setOrdersVideo(JSON.parse(localStorage.getItem('ordersVideo') || '[]'));
+      setOrdersVideo(updatedOrders);
     }
     // Thông báo
     const updatedNotifications = [
@@ -76,10 +76,10 @@ export default function Home() {
         time,
         read: false
       },
-      ...notifications
+      ...JSON.parse(localStorage.getItem('notifications') || '[]')
     ];
     localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(JSON.parse(localStorage.getItem('notifications') || '[]'));
+    setNotifications(updatedNotifications);
   }
 
   function handleLogout() {
