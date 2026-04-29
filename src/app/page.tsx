@@ -58,28 +58,34 @@ export default function Home() {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     let updatedOrders;
-    if (type === 'design') {
-      updatedOrders = [{ ...order, id: Date.now() }, ...JSON.parse(localStorage.getItem('ordersDesign') || '[]')];
-      localStorage.setItem('ordersDesign', JSON.stringify(updatedOrders));
-      setOrdersDesign(updatedOrders);
-    } else {
-      updatedOrders = [{ ...order, id: Date.now() }, ...JSON.parse(localStorage.getItem('ordersVideo') || '[]')];
-      localStorage.setItem('ordersVideo', JSON.stringify(updatedOrders));
-      setOrdersVideo(updatedOrders);
+    try {
+      if (type === 'design') {
+        updatedOrders = [{ ...order, id: Date.now() }, ...JSON.parse(localStorage.getItem('ordersDesign') || '[]')];
+        localStorage.setItem('ordersDesign', JSON.stringify(updatedOrders));
+        setOrdersDesign(JSON.parse(localStorage.getItem('ordersDesign') || '[]'));
+      } else {
+        updatedOrders = [{ ...order, id: Date.now() }, ...JSON.parse(localStorage.getItem('ordersVideo') || '[]')];
+        localStorage.setItem('ordersVideo', JSON.stringify(updatedOrders));
+        setOrdersVideo(JSON.parse(localStorage.getItem('ordersVideo') || '[]'));
+      }
+      // Thông báo
+      const updatedNotifications = [
+        {
+          id: Date.now(),
+          type,
+          name: order.title || (type === 'design' ? 'Order Design' : 'Order Video'),
+          time,
+          read: false
+        },
+        ...JSON.parse(localStorage.getItem('notifications') || '[]')
+      ];
+      localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
+      setNotifications(JSON.parse(localStorage.getItem('notifications') || '[]'));
+    } catch (err) {
+      setOrdersDesign([]);
+      setOrdersVideo([]);
+      setNotifications([]);
     }
-    // Thông báo
-    const updatedNotifications = [
-      {
-        id: Date.now(),
-        type,
-        name: order.title || (type === 'design' ? 'Order Design' : 'Order Video'),
-        time,
-        read: false
-      },
-      ...JSON.parse(localStorage.getItem('notifications') || '[]')
-    ];
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
   }
 
   function handleLogout() {
