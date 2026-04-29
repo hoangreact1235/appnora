@@ -60,13 +60,13 @@ export default function Home() {
     let updatedOrders;
     try {
       if (type === 'design') {
-        updatedOrders = [{ ...order, id: Date.now() }, ...JSON.parse(localStorage.getItem('ordersDesign') || '[]')];
+        updatedOrders = [{ ...order, id: Date.now() }, ...ordersDesign];
         localStorage.setItem('ordersDesign', JSON.stringify(updatedOrders));
-        setOrdersDesign(JSON.parse(localStorage.getItem('ordersDesign') || '[]'));
+        setOrdersDesign(updatedOrders);
       } else {
-        updatedOrders = [{ ...order, id: Date.now() }, ...JSON.parse(localStorage.getItem('ordersVideo') || '[]')];
+        updatedOrders = [{ ...order, id: Date.now() }, ...ordersVideo];
         localStorage.setItem('ordersVideo', JSON.stringify(updatedOrders));
-        setOrdersVideo(JSON.parse(localStorage.getItem('ordersVideo') || '[]'));
+        setOrdersVideo(updatedOrders);
       }
       // Thông báo
       const updatedNotifications = [
@@ -77,10 +77,10 @@ export default function Home() {
           time,
           read: false
         },
-        ...JSON.parse(localStorage.getItem('notifications') || '[]')
+        ...notifications
       ];
       localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-      setNotifications(JSON.parse(localStorage.getItem('notifications') || '[]'));
+      setNotifications(updatedNotifications);
     } catch (err) {
       setOrdersDesign([]);
       setOrdersVideo([]);
