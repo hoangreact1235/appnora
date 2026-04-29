@@ -37,6 +37,7 @@ export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) 
     const token = generateToken();
     localStorage.setItem(`order_token_${orderId}`, token);
     if (onCreate) {
+      console.log("OrderDesignForm onCreate called", data);
       onCreate({
         ...data,
         id: orderId,

@@ -59,6 +59,7 @@ export default function Home() {
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     let updatedOrders;
     try {
+      console.log("addOrder called", type, order);
       if (type === 'design') {
         updatedOrders = [{ ...order, id: Date.now() }, ...ordersDesign];
         localStorage.setItem('ordersDesign', JSON.stringify(updatedOrders));
