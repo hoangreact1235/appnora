@@ -63,7 +63,7 @@ export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) 
   };
 
   return (
-    <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit(onSubmit)} noValidate>
       {/* Cột trái */}
       <div className="flex flex-col gap-4">
 
