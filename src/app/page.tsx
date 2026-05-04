@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
 import Header from "./components/Header";
 import AdminLogin from "./components/AdminLogin";
 import OrderDesignForm from "./components/OrderDesignForm";
@@ -19,6 +19,9 @@ export default function Home() {
   const [ordersDesign, setOrdersDesign] = useState<any[]>([]);
   const [ordersVideo, setOrdersVideo] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [pendingScroll, setPendingScroll] = useState<{ orderId?: number; type: 'design' | 'video'; name?: string } | null>(null);
+  const didInitNotifications = useRef(false);
+  const prevUnreadCountRef = useRef(0);
 
   // Fetch orders từ server (cả 2 trình duyệt đều đọc từ cùng 1 nơi)
   async function fetchOrders() {
@@ -51,6 +54,45 @@ export default function Home() {
       eventSource.close();
     };
   }, []);
+
+  // Phát âm thanh khi có thông báo mới (không chạy ở lần load đầu).
+  useEffect(() => {
+    const unreadCount = notifications.filter((n: { read: boolean }) => !n.read).length;
+
+    if (!didInitNotifications.current) {
+      didInitNotifications.current = true;
+      prevUnreadCountRef.current = unreadCount;
+      return;
+    }
+
+    if (unreadCount > prevUnreadCountRef.current) {
+      try {
+        const audio = new Audio('/thongbao.mp3');
+        audio.play();
+      } catch {}
+    }
+
+    prevUnreadCountRef.current = unreadCount;
+  }, [notifications]);
+
+  // Sau khi bấm thông báo, chỉ cuộn khi tab + danh sách đã render xong.
+  useEffect(() => {
+    if (!pendingScroll) return;
+
+    const targetTab = pendingScroll.type === 'design' ? 'order-design' : 'order-video';
+    if (activeTab !== targetTab) return;
+
+    const byId = pendingScroll.orderId ? document.getElementById(`order-${pendingScroll.orderId}`) : null;
+    const byTitle = !byId && pendingScroll.name
+      ? document.querySelector(`[data-order-title="${pendingScroll.name.toLowerCase().replace(/"/g, '\\"')}"]`)
+      : null;
+
+    const target = byId || byTitle;
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingScroll(null);
+    }
+  }, [pendingScroll, activeTab, ordersDesign, ordersVideo]);
 
   // Hàm thêm order mới - lưu lên server
   async function addOrder(type: 'design' | 'video', order: {
@@ -91,12 +133,19 @@ export default function Home() {
   }
 
   async function handleReceiveOrder(type: 'design' | 'video', orderId: number) {
-    await fetch('/api/orders', {
+    if (type === 'design') {
+      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận' } : o)));
+    } else {
+      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận' } : o)));
+    }
+
+    fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'receive', type, orderId })
+    }).catch(() => {
+      fetchOrders();
     });
-    fetchOrders();
   }
 
   async function handleDeleteOrder(type: 'design' | 'video', orderId: number) {
@@ -190,11 +239,11 @@ export default function Home() {
           notifications={notifications}
           onClose={() => setShowNotification(false)}
           onClickNotification={async n => {
-            await fetch('/api/orders', {
+            fetch('/api/orders', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action: 'mark-read', notificationId: n.id })
-            });
+            }).catch(() => {});
             setNotifications(notifications.map((x: any) => x.id === n.id ? { ...x, read: true } : x));
             setShowNotification(false);
 
@@ -203,12 +252,7 @@ export default function Home() {
             } else {
               setActiveTab('order-video');
             }
-
-            setTimeout(() => {
-              if (!n.orderId) return;
-              const target = document.getElementById(`order-${n.orderId}`);
-              target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 150);
+            setPendingScroll({ orderId: n.orderId, type: n.type, name: n.name });
           }}
         />
       )}
