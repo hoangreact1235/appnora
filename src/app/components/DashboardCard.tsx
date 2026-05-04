@@ -31,6 +31,7 @@ const statusColor: Record<string, string> = {
 export default function DashboardCard({ order, onDelete, onReceive, onSubmitFinal, onRequestRevision, onApprove, isAdmin = false }: DashboardCardProps) {
   const [finalLink, setFinalLink] = useState(order.finalLink || "");
   const [revisionNote, setRevisionNote] = useState("");
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
 
   useEffect(() => {
     setFinalLink(order.finalLink || "");
@@ -50,7 +51,11 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
       <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Kích thước: <span className="font-normal whitespace-nowrap">{order.size}</span></div>
       <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Phiên bản: <span className="font-normal">{order.version}</span></div>
       <div className="text-[15px] mb-2 font-semibold text-[#6B184E]">Nội dung yêu cầu:<br/>
-        <span className="block text-[#6B184E] whitespace-pre-line line-clamp-3 font-normal">{order.content}</span>
+        <span className={`block text-[#6B184E] whitespace-pre-line font-normal ${isContentExpanded ? "" : "line-clamp-2"}`}>{order.content}</span>
+        <button
+          className="text-pink-500 text-xs mt-1 hover:underline focus:outline-none"
+          onClick={() => setIsContentExpanded(!isContentExpanded)}
+        >{isContentExpanded ? "Thu gọn" : "Xem thêm"}</button>
       </div>
       {!!order.revisionNote && (
         <div className="text-[13px] mb-2 text-[#6B184E]">
