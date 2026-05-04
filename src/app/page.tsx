@@ -16,36 +16,31 @@ export default function Home() {
   const [showLogin, setShowLogin] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
-  // State orders và notifications
-  const [ordersDesign, setOrdersDesign] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('ordersDesign') || '[]');
-    } catch { return []; }
-  });
-  const [ordersVideo, setOrdersVideo] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('ordersVideo') || '[]');
-    } catch { return []; }
-  });
-  const [notifications, setNotifications] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('notifications') || '[]');
-    } catch { return []; }
-  });
+  const [ordersDesign, setOrdersDesign] = useState<any[]>([]);
+  const [ordersVideo, setOrdersVideo] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
-  // Lắng nghe sự kiện storage để đồng bộ giữa các tab
+  // Fetch orders từ server (cả 2 trình duyệt đều đọc từ cùng 1 nơi)
+  async function fetchOrders() {
+    try {
+      const res = await fetch('/api/orders');
+      if (!res.ok) return;
+      const data = await res.json();
+      setOrdersDesign(data.ordersDesign || []);
+      setOrdersVideo(data.ordersVideo || []);
+      setNotifications(data.notifications || []);
+    } catch {}
+  }
+
+  // Fetch ngay khi load trang, sau đó poll mỗi 5 giây
   useEffect(() => {
-    function syncFromStorage(e: StorageEvent) {
-      if (e.key === 'ordersDesign') setOrdersDesign(JSON.parse(e.newValue || '[]'));
-      if (e.key === 'ordersVideo') setOrdersVideo(JSON.parse(e.newValue || '[]'));
-      if (e.key === 'notifications') setNotifications(JSON.parse(e.newValue || '[]'));
-    }
-    window.addEventListener('storage', syncFromStorage);
-    return () => window.removeEventListener('storage', syncFromStorage);
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Hàm thêm order mới
-  function addOrder(type: 'design' | 'video', order: {
+  // Hàm thêm order mới - lưu lên server
+  async function addOrder(type: 'design' | 'video', order: {
     id?: number;
     title: string;
     status: string;
@@ -57,36 +52,28 @@ export default function Home() {
   }) {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    let updatedOrders;
+    const newOrder = { ...order, id: Date.now() };
+    const notification = {
+      id: Date.now() + 1,
+      type,
+      name: order.title || (type === 'design' ? 'Order Design' : 'Order Video'),
+      time,
+      read: false
+    };
     try {
-      console.log("addOrder called", type, order);
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, order: newOrder, notification })
+      });
+      // Cập nhật state ngay lập tức (không cần chờ poll)
       if (type === 'design') {
-        updatedOrders = [{ ...order, id: Date.now() }, ...ordersDesign];
-        localStorage.setItem('ordersDesign', JSON.stringify(updatedOrders));
-        setOrdersDesign(updatedOrders);
+        setOrdersDesign(prev => [newOrder, ...prev]);
       } else {
-        updatedOrders = [{ ...order, id: Date.now() }, ...ordersVideo];
-        localStorage.setItem('ordersVideo', JSON.stringify(updatedOrders));
-        setOrdersVideo(updatedOrders);
+        setOrdersVideo(prev => [newOrder, ...prev]);
       }
-      // Thông báo
-      const updatedNotifications = [
-        {
-          id: Date.now(),
-          type,
-          name: order.title || (type === 'design' ? 'Order Design' : 'Order Video'),
-          time,
-          read: false
-        },
-        ...notifications
-      ];
-      localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-      setNotifications(updatedNotifications);
-    } catch (err) {
-      setOrdersDesign([]);
-      setOrdersVideo([]);
-      setNotifications([]);
-    }
+      setNotifications(prev => [notification, ...prev]);
+    } catch {}
   }
 
   function handleLogout() {
@@ -168,10 +155,14 @@ export default function Home() {
         <NotificationPopup
           notifications={notifications}
           onClose={() => setShowNotification(false)}
-          onClickNotification={n => {
-            setNotifications(notifications.map((x: { id: number; read: boolean }) => x.id === n.id ? { ...x, read: true } : x));
+          onClickNotification={async n => {
+            await fetch('/api/orders', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ notificationId: n.id })
+            });
+            setNotifications(notifications.map((x: any) => x.id === n.id ? { ...x, read: true } : x));
             setShowNotification(false);
-            // TODO: scroll tới order tương ứng
           }}
         />
       )}
