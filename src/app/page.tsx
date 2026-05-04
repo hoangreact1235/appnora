@@ -193,6 +193,22 @@ export default function Home() {
     });
   }
 
+  async function handleApproveOrder(type: 'design' | 'video', orderId: number) {
+    if (type === 'design') {
+      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã duyệt' } : o)));
+    } else {
+      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã duyệt' } : o)));
+    }
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve', type, orderId })
+    }).catch(() => {
+      fetchOrders();
+    });
+  }
+
   function handleLogout() {
     setAdmin(null);
   }
@@ -258,6 +274,7 @@ export default function Home() {
             onDeleteOrder={(id) => handleDeleteOrder(activeTab === "order-design" ? 'design' : 'video', id)}
             onSubmitFinal={(id, finalLink) => handleSubmitFinal(activeTab === "order-design" ? 'design' : 'video', id, finalLink)}
             onRequestRevision={(id, note) => handleRequestRevision(activeTab === "order-design" ? 'design' : 'video', id, note)}
+            onApproveOrder={(id) => handleApproveOrder(activeTab === "order-design" ? 'design' : 'video', id)}
           />
         </section>
       </main>

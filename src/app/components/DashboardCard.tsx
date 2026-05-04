@@ -16,6 +16,7 @@ interface DashboardCardProps {
   onReceive?: () => void;
   onSubmitFinal?: (finalLink: string) => void;
   onRequestRevision?: (note: string) => void;
+  onApprove?: () => void;
   isAdmin?: boolean;
 }
 
@@ -24,9 +25,10 @@ const statusColor: Record<string, string> = {
   "Chờ duyệt": "bg-pink-100 text-pink-700",
   "Đã nhận": "bg-emerald-100 text-emerald-700",
   "Hoàn thành": "bg-pink-300 text-pink-900",
+  "Đã duyệt": "bg-sky-100 text-sky-700",
 };
 
-export default function DashboardCard({ order, onDelete, onReceive, onSubmitFinal, onRequestRevision, isAdmin = false }: DashboardCardProps) {
+export default function DashboardCard({ order, onDelete, onReceive, onSubmitFinal, onRequestRevision, onApprove, isAdmin = false }: DashboardCardProps) {
   const [finalLink, setFinalLink] = useState(order.finalLink || "");
   const [revisionNote, setRevisionNote] = useState("");
 
@@ -75,7 +77,7 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
             value={finalLink}
             onChange={(e) => setFinalLink(e.target.value)}
             placeholder="Dán link final..."
-            className="w-full mb-2 rounded border border-pink-200 px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-pink-300"
+            className="w-full mb-2 rounded border border-pink-300 bg-white px-2 py-1 text-sm text-[#6B184E] placeholder:text-[#8E5A7A] outline-none focus:ring-2 focus:ring-pink-400"
           />
           <div className="flex gap-2 justify-center">
             <button
@@ -94,25 +96,40 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
             value={revisionNote}
             onChange={(e) => setRevisionNote(e.target.value)}
             placeholder="Ghi nội dung cần sửa..."
-            className="w-full mb-2 rounded border border-pink-200 px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-pink-300 min-h-[64px]"
+            className="w-full mb-2 rounded border border-pink-300 bg-white px-2 py-1 text-sm text-[#6B184E] placeholder:text-[#8E5A7A] outline-none focus:ring-2 focus:ring-pink-400 min-h-[64px]"
           />
-          <button
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded px-2 py-1 text-sm transition"
-            onClick={() => {
-              const note = revisionNote.trim();
-              if (!note) return;
-              onRequestRevision?.(note);
-              setRevisionNote("");
-            }}
-          >
-            Yêu cầu sửa
-          </button>
+          <div className="flex gap-2">
+            <button
+              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded px-2 py-1 text-sm transition"
+              onClick={() => {
+                const note = revisionNote.trim();
+                if (!note) return;
+                onRequestRevision?.(note);
+                setRevisionNote("");
+              }}
+            >
+              Yêu cầu sửa
+            </button>
+            <button
+              className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded px-2 py-1 text-sm transition"
+              onClick={onApprove}
+            >
+              Hoàn thành
+            </button>
+          </div>
         </div>
       )}
       {!isAdmin && order.status === "Cần sửa" && (
         <div className="w-full mt-auto">
           <div className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 text-center">
             Đã gửi yêu cầu sửa, vui lòng chờ bản mới.
+          </div>
+        </div>
+      )}
+      {!isAdmin && order.status === "Đã duyệt" && (
+        <div className="w-full mt-auto">
+          <div className="text-[13px] text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-1 text-center">
+            Order đã được xác nhận hoàn thành.
           </div>
         </div>
       )}

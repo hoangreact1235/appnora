@@ -112,6 +112,34 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       ];
     }
 
+    if (action === 'approve') {
+      const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
+      const target = targetOrders.find((o: any) => o.id === orderId);
+
+      if (!target) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+
+      const approvedOrder = { ...target, status: 'Đã duyệt' };
+      if (type === 'design') {
+        data.ordersDesign = data.ordersDesign.map((o: any) => (o.id === orderId ? approvedOrder : o));
+      } else {
+        data.ordersVideo = data.ordersVideo.map((o: any) => (o.id === orderId ? approvedOrder : o));
+      }
+
+      data.notifications = [
+        {
+          id: Date.now() + 3,
+          type,
+          orderId,
+          name: `${target.title} - Người order đã xác nhận hoàn thành`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          read: false
+        },
+        ...data.notifications
+      ];
+    }
+
     if (action === 'delete') {
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.filter((o: any) => o.id !== orderId);
