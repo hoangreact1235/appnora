@@ -29,7 +29,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   } catch (err) {
     return res.status(400).json({ error: 'Invalid JSON body' });
   }
-  const usersPath = path.join(process.cwd(), 'src/app/auth/users.json');
+  const usersPath = path.join(process.cwd(), 'users-data.json');
   let users;
   try {
     users = JSON.parse(fs.readFileSync(usersPath, 'utf8'));

@@ -11,7 +11,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!username || !password || !displayName) {
     return res.status(400).json({ error: 'Thiếu thông tin' });
   }
-  const usersPath = path.join(process.cwd(), 'src/app/auth/users.json');
+  const usersPath = path.join(process.cwd(), 'users-data.json');
   let users = [];
   try {
     users = JSON.parse(fs.readFileSync(usersPath, 'utf8'));
@@ -20,7 +20,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'Tên đăng nhập đã tồn tại' });
   }
   const hash = bcrypt.hashSync(password, 10);
-  users.push({ username, password: hash, displayName, role: 'staff' });
+  const staffRole = ['design', 'video'].includes(req.body.role) ? req.body.role : 'design';
+  users.push({ username, password: hash, displayName, role: staffRole });
   try {
     fs.writeFileSync(usersPath, JSON.stringify(users, null, 2), 'utf8');
     return res.status(200).json({ success: true });

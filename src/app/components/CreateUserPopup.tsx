@@ -4,6 +4,7 @@ export default function CreateUserPopup({ onClose, onCreated }: { onClose: () =>
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [role, setRole] = useState("design");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -15,7 +16,7 @@ export default function CreateUserPopup({ onClose, onCreated }: { onClose: () =>
       const res = await fetch("/api/auth/create-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, displayName })
+        body: JSON.stringify({ username, password, displayName, role })
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -59,6 +60,14 @@ export default function CreateUserPopup({ onClose, onCreated }: { onClose: () =>
             onChange={e => setDisplayName(e.target.value)}
             required
           />
+          <select
+            className="border border-pink-200 rounded px-3 py-2 text-[#D81B60] font-semibold focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none"
+            value={role}
+            onChange={e => setRole(e.target.value)}
+          >
+            <option value="design">Design</option>
+            <option value="video">Video / Editor</option>
+          </select>
           {error && <div className="text-red-500 text-sm">{error}</div>}
           <button type="submit" className="bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded px-4 py-2 mt-2" disabled={loading}>
             {loading ? "Đang tạo..." : "Tạo tài khoản"}
@@ -68,3 +77,4 @@ export default function CreateUserPopup({ onClose, onCreated }: { onClose: () =>
     </div>
   );
 }
+

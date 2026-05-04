@@ -50,7 +50,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === 'PATCH') {
-    const { action, notificationId, type, orderId, finalLink } = req.body;
+    const { action, notificationId, type, orderId, finalLink, receivedBy } = req.body;
     const data = readData();
 
     if (action === 'mark-read') {
@@ -64,11 +64,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       const receivedOrder = targetOrdersR.find((o: any) => o.id === orderId);
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Đã nhận' } : o
+          o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '' } : o
         );
       } else {
         data.ordersVideo = data.ordersVideo.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Đã nhận' } : o
+          o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '' } : o
         );
       }
       if (receivedOrder) {

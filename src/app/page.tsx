@@ -9,12 +9,14 @@ import OrderVideoHistory from "./components/OrderVideoHistory";
 import Dashboard from "./components/Dashboard";
 
 import CreateUserPopup from "./components/CreateUserPopup";
+import StaffManagement from "./components/StaffManagement";
 import NotificationPopup from "./components/NotificationPopup";
 export default function Home() {
   const [activeTab, setActiveTab] = useState("order-design");
   const [admin, setAdmin] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const [showStaffManagement, setShowStaffManagement] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [ordersDesign, setOrdersDesign] = useState<any[]>([]);
   const [ordersVideo, setOrdersVideo] = useState<any[]>([]);
@@ -137,16 +139,17 @@ export default function Home() {
   }
 
   async function handleReceiveOrder(type: 'design' | 'video', orderId: number) {
+    const receivedBy = admin?.displayName || admin?.username || '';
     if (type === 'design') {
-      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận' } : o)));
+      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy } : o)));
     } else {
-      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận' } : o)));
+      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy } : o)));
     }
 
     fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'receive', type, orderId })
+      body: JSON.stringify({ action: 'receive', type, orderId, receivedBy })
     }).catch(() => {
       fetchOrders();
     });
@@ -261,6 +264,7 @@ export default function Home() {
         admin={admin}
         onLogout={handleLogout}
         onShowCreateUser={() => setShowCreateUser(true)}
+        onShowStaffManagement={() => setShowStaffManagement(true)}
         onShowNotification={() => setShowNotification(true)}
         notificationCount={notifications.filter((n: { read: boolean }) => !n.read).length}
       />
@@ -286,12 +290,21 @@ export default function Home() {
         <div className="fixed inset-0 bg-[rgba(255,255,255,0.5)] backdrop-blur-sm flex items-center justify-center z-50">
           <div className="relative">
             <button className="absolute top-2 right-2 text-xl text-gray-500 hover:text-pink-600" onClick={() => setShowLogin(false)}>&times;</button>
-            <AdminLogin onLogin={user => { setAdmin(user); setShowLogin(false); }} />
+            <AdminLogin onLogin={user => {
+              setAdmin(user);
+              setShowLogin(false);
+              // Auto-switch tab theo role
+              if (user.role === 'design') setActiveTab('order-design');
+              else if (user.role === 'video') setActiveTab('order-video');
+            }} />
           </div>
         </div>
       )}
       {showCreateUser && (
         <CreateUserPopup onClose={() => setShowCreateUser(false)} onCreated={() => {}} />
+      )}
+      {showStaffManagement && (
+        <StaffManagement onClose={() => setShowStaffManagement(false)} />
       )}
       {admin && showNotification && (
         <NotificationPopup

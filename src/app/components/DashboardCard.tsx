@@ -11,6 +11,7 @@ interface DashboardCardProps {
     content: string;
     finalLink?: string;
     revisionNote?: string;
+    receivedBy?: string;
   };
   onDelete?: () => void;
   onReceive?: () => void;
@@ -50,6 +51,9 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
       <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Deadline: <span className="font-normal">{order.deadline}</span></div>
       <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Kích thước: <span className="font-normal whitespace-nowrap">{order.size}</span></div>
       <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Phiên bản: <span className="font-normal">{order.version}</span></div>
+      {!!order.receivedBy && (
+        <div className="text-[13px] mb-1 font-semibold text-[#6B184E]">Người nhận: <span className="font-normal text-emerald-600">{order.receivedBy}</span></div>
+      )}
       <div className="text-[15px] mb-2 font-semibold text-[#6B184E]">Nội dung yêu cầu:<br/>
         <span
           className="block text-[#6B184E] whitespace-pre-line font-normal"

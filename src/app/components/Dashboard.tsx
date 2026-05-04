@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import DashboardCard from "./DashboardCard";
 
 interface Order {
@@ -12,6 +12,7 @@ interface Order {
   content: string;
   finalLink?: string;
   revisionNote?: string;
+  receivedBy?: string;
 }
 
 interface DashboardProps {
@@ -105,13 +106,37 @@ const ordersVideo = [
 ];
 
 export default function Dashboard({ type = "video", orders = [], isAdmin = false, onReceiveOrder, onDeleteOrder, onSubmitFinal, onRequestRevision, onApproveOrder }: DashboardProps) {
+  const [filterReceiver, setFilterReceiver] = useState("all");
+
+  // Lấy danh sách người nhận duy nhất
+  const receivers = Array.from(new Set(orders.filter(o => o.receivedBy).map(o => o.receivedBy as string)));
+
+  const filteredOrders = filterReceiver === "all"
+    ? orders
+    : orders.filter(o => o.receivedBy === filterReceiver);
+
   return (
     <section className="w-full mt-12 mb-16 px-2 sm:px-4 bg-transparent">
-      <h2 className="text-2xl font-bold text-[#D81B60] mb-8 text-left uppercase">
-        {type === "design" ? "Dashboard Order Design" : "Dashboard Order Video"}
-      </h2>
+      <div className="flex items-center gap-4 mb-8">
+        <h2 className="text-2xl font-bold text-[#D81B60] uppercase">
+          {type === "design" ? "Dashboard Order Design" : "Dashboard Order Video"}
+        </h2>
+        {receivers.length > 0 && (
+          <select
+            title="Lọc theo người nhận"
+            className="border border-pink-200 rounded-lg px-3 py-1.5 text-[#D81B60] font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"
+            value={filterReceiver}
+            onChange={e => setFilterReceiver(e.target.value)}
+          >
+            <option value="all">Tất cả</option>
+            {receivers.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        )}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-6 w-full">
-        {orders.map(order => (
+        {filteredOrders.map(order => (
           <DashboardCard
             key={order.id}
             order={order}

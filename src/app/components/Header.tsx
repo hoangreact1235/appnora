@@ -9,11 +9,12 @@ interface HeaderProps {
   admin?: any;
   onLogout?: () => void;
   onShowCreateUser?: () => void;
+  onShowStaffManagement?: () => void;
   onShowNotification?: () => void;
   notificationCount?: number;
 }
 
-const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, admin, onLogout, onShowCreateUser, onShowNotification, notificationCount = 0 }) => {
+const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, admin, onLogout, onShowCreateUser, onShowStaffManagement, onShowNotification, notificationCount = 0 }) => {
   // Xác định tên hiển thị
   let displayName = '';
   if (admin) {
@@ -68,10 +69,15 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, ad
                     <span className="border border-pink-200 bg-white text-[#D81B60] font-semibold px-4 py-2 rounded-lg shadow-sm transition">
                       {displayName}
                     </span>
-                    {admin.username === 'hoangleadermedia' && (
-                      <button className="border border-pink-200 bg-white text-[#D81B60] font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-pink-100 transition" onClick={onShowCreateUser}>
-                        Tạo tài khoản nhân viên
-                      </button>
+                    {admin.role === 'admin' && (
+                      <>
+                        <button className="border border-pink-200 bg-white text-[#D81B60] font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-pink-100 transition" onClick={onShowCreateUser}>
+                          Tạo tài khoản nhân viên
+                        </button>
+                        <button className="border border-pink-200 bg-white text-[#D81B60] font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-pink-100 transition" onClick={onShowStaffManagement}>
+                          Quản lý nhân viên
+                        </button>
+                      </>
                     )}
                     <button className="border border-pink-200 bg-white text-[#D81B60] font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-pink-100 transition" onClick={onLogout}>
                       Đăng xuất
@@ -86,15 +92,18 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, ad
         </div>
         {/* Dải tab phía dưới */}
         <div className="flex flex-row gap-3 mt-6 w-full px-8">
-          <button
-            className={`px-5 py-2 rounded-lg font-semibold shadow-sm transition ${activeTab === 'order-design' ? 'bg-[#D81B60] text-white' : 'bg-[#F8BBD0] text-[#6B184E]'}`}
-            onClick={() => onTabChange('order-design')}
-          >Order Design</button>
-          <button
-            className={`px-5 py-2 rounded-lg font-semibold shadow-sm transition ${activeTab === 'order-video' ? 'bg-[#D81B60] text-white' : 'bg-[#F8BBD0] text-[#6B184E]'}`}
-            onClick={() => onTabChange('order-video')}
-          >Order Video</button>
-          {/* Đã xoá 2 tab Lịch đăng TikTok và Báo cáo TikTok */}
+          {(!admin || admin.role === 'admin' || admin.role === 'design') && (
+            <button
+              className={`px-5 py-2 rounded-lg font-semibold shadow-sm transition ${activeTab === 'order-design' ? 'bg-[#D81B60] text-white' : 'bg-[#F8BBD0] text-[#6B184E]'}`}
+              onClick={() => onTabChange('order-design')}
+            >Order Design</button>
+          )}
+          {(!admin || admin.role === 'admin' || admin.role === 'video') && (
+            <button
+              className={`px-5 py-2 rounded-lg font-semibold shadow-sm transition ${activeTab === 'order-video' ? 'bg-[#D81B60] text-white' : 'bg-[#F8BBD0] text-[#6B184E]'}`}
+              onClick={() => onTabChange('order-video')}
+            >Order Video</button>
+          )}
         </div>
       </div>
     </header>
