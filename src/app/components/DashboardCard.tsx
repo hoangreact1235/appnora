@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 interface DashboardCardProps {
   order: {
@@ -9,9 +9,13 @@ interface DashboardCardProps {
     size: string;
     version: string;
     content: string;
+    finalLink?: string;
+    revisionNote?: string;
   };
   onDelete?: () => void;
   onReceive?: () => void;
+  onSubmitFinal?: (finalLink: string) => void;
+  onRequestRevision?: (note: string) => void;
   isAdmin?: boolean;
 }
 
@@ -22,7 +26,14 @@ const statusColor: Record<string, string> = {
   "Hoàn thành": "bg-pink-300 text-pink-900",
 };
 
-export default function DashboardCard({ order, onDelete, onReceive, isAdmin = false }: DashboardCardProps) {
+export default function DashboardCard({ order, onDelete, onReceive, onSubmitFinal, onRequestRevision, isAdmin = false }: DashboardCardProps) {
+  const [finalLink, setFinalLink] = useState(order.finalLink || "");
+  const [revisionNote, setRevisionNote] = useState("");
+
+  useEffect(() => {
+    setFinalLink(order.finalLink || "");
+  }, [order.finalLink]);
+
   return (
     <div
       id={`order-${order.id}`}
@@ -39,9 +50,74 @@ export default function DashboardCard({ order, onDelete, onReceive, isAdmin = fa
       <div className="text-[15px] mb-2 font-semibold text-[#6B184E]">Nội dung yêu cầu:<br/>
         <span className="block text-[#6B184E] whitespace-pre-line line-clamp-3 font-normal">{order.content}</span>
       </div>
-      {isAdmin && (
+      {!!order.revisionNote && (
+        <div className="text-[13px] mb-2 text-[#6B184E]">
+          <span className="font-semibold">Yêu cầu sửa: </span>
+          <span>{order.revisionNote}</span>
+        </div>
+      )}
+      {!!order.finalLink && (
+        <div className="text-[13px] mb-2 text-[#6B184E] break-all">
+          <span className="font-semibold">Link final: </span>
+          <a className="text-[#D81B60] underline" href={order.finalLink} target="_blank" rel="noreferrer">Mở file</a>
+        </div>
+      )}
+      {isAdmin && order.status === "Chờ xử lý" && (
         <div className="w-full flex gap-2 mt-auto justify-center">
           <button className="bg-pink-400 hover:bg-pink-500 text-white font-semibold rounded px-2 py-1 text-sm transition whitespace-nowrap" onClick={onReceive}>Nhận thiết kế</button>
+          <button className="border border-pink-300 text-pink-700 font-semibold rounded px-2 py-1 text-sm hover:bg-pink-50 transition whitespace-nowrap" onClick={onDelete}>Xóa order</button>
+        </div>
+      )}
+      {isAdmin && (order.status === "Đã nhận" || order.status === "Cần sửa") && (
+        <div className="w-full mt-auto">
+          <input
+            type="url"
+            value={finalLink}
+            onChange={(e) => setFinalLink(e.target.value)}
+            placeholder="Dán link final..."
+            className="w-full mb-2 rounded border border-pink-200 px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-pink-300"
+          />
+          <div className="flex gap-2 justify-center">
+            <button
+              className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded px-2 py-1 text-sm transition whitespace-nowrap"
+              onClick={() => onSubmitFinal?.(finalLink.trim())}
+            >
+              {order.status === "Cần sửa" ? "Trả bản sửa" : "Trả final"}
+            </button>
+            <button className="border border-pink-300 text-pink-700 font-semibold rounded px-2 py-1 text-sm hover:bg-pink-50 transition whitespace-nowrap" onClick={onDelete}>Xóa order</button>
+          </div>
+        </div>
+      )}
+      {!isAdmin && order.status === "Hoàn thành" && (
+        <div className="w-full mt-auto">
+          <textarea
+            value={revisionNote}
+            onChange={(e) => setRevisionNote(e.target.value)}
+            placeholder="Ghi nội dung cần sửa..."
+            className="w-full mb-2 rounded border border-pink-200 px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-pink-300 min-h-[64px]"
+          />
+          <button
+            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded px-2 py-1 text-sm transition"
+            onClick={() => {
+              const note = revisionNote.trim();
+              if (!note) return;
+              onRequestRevision?.(note);
+              setRevisionNote("");
+            }}
+          >
+            Yêu cầu sửa
+          </button>
+        </div>
+      )}
+      {!isAdmin && order.status === "Cần sửa" && (
+        <div className="w-full mt-auto">
+          <div className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 text-center">
+            Đã gửi yêu cầu sửa, vui lòng chờ bản mới.
+          </div>
+        </div>
+      )}
+      {isAdmin && order.status === "Hoàn thành" && (
+        <div className="w-full flex gap-2 mt-auto justify-center">
           <button className="border border-pink-300 text-pink-700 font-semibold rounded px-2 py-1 text-sm hover:bg-pink-50 transition whitespace-nowrap" onClick={onDelete}>Xóa order</button>
         </div>
       )}

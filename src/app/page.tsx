@@ -157,6 +157,42 @@ export default function Home() {
     fetchOrders();
   }
 
+  async function handleSubmitFinal(type: 'design' | 'video', orderId: number, finalLink: string) {
+    if (!finalLink) return;
+
+    if (type === 'design') {
+      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink } : o)));
+    } else {
+      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink } : o)));
+    }
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deliver', type, orderId, finalLink })
+    }).catch(() => {
+      fetchOrders();
+    });
+  }
+
+  async function handleRequestRevision(type: 'design' | 'video', orderId: number, note: string) {
+    if (!note) return;
+
+    if (type === 'design') {
+      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Cần sửa', revisionNote: note } : o)));
+    } else {
+      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Cần sửa', revisionNote: note } : o)));
+    }
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'request-revision', type, orderId, note })
+    }).catch(() => {
+      fetchOrders();
+    });
+  }
+
   function handleLogout() {
     setAdmin(null);
   }
@@ -220,6 +256,8 @@ export default function Home() {
             isAdmin={!!admin}
             onReceiveOrder={(id) => handleReceiveOrder(activeTab === "order-design" ? 'design' : 'video', id)}
             onDeleteOrder={(id) => handleDeleteOrder(activeTab === "order-design" ? 'design' : 'video', id)}
+            onSubmitFinal={(id, finalLink) => handleSubmitFinal(activeTab === "order-design" ? 'design' : 'video', id, finalLink)}
+            onRequestRevision={(id, note) => handleRequestRevision(activeTab === "order-design" ? 'design' : 'video', id, note)}
           />
         </section>
       </main>

@@ -22,6 +22,11 @@ function writeData(data: any) {
   fs.writeFileSync(ORDERS_FILE, JSON.stringify(data, null, 2));
 }
 
+function bumpVersion(version?: string) {
+  const current = Number(String(version || 'V0').replace(/[^0-9]/g, '')) || 0;
+  return `V${current + 1}`;
+}
+
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     const data = readData();
@@ -45,7 +50,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === 'PATCH') {
-    const { action, notificationId, type, orderId } = req.body;
+    const { action, notificationId, type, orderId, finalLink } = req.body;
     const data = readData();
 
     if (action === 'mark-read') {
@@ -64,6 +69,47 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           o.id === orderId ? { ...o, status: 'Đã nhận' } : o
         );
       }
+    }
+
+    if (action === 'deliver') {
+      if (type === 'design') {
+        data.ordersDesign = data.ordersDesign.map((o: any) =>
+          o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '' } : o
+        );
+      } else {
+        data.ordersVideo = data.ordersVideo.map((o: any) =>
+          o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '' } : o
+        );
+      }
+    }
+
+    if (action === 'request-revision') {
+      const note = String(req.body.note || '').trim();
+      const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
+      const target = targetOrders.find((o: any) => o.id === orderId);
+
+      if (!target) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+
+      const updatedOrder = { ...target, status: 'Cần sửa', revisionNote: note };
+      if (type === 'design') {
+        data.ordersDesign = data.ordersDesign.map((o: any) => (o.id === orderId ? updatedOrder : o));
+      } else {
+        data.ordersVideo = data.ordersVideo.map((o: any) => (o.id === orderId ? updatedOrder : o));
+      }
+
+      data.notifications = [
+        {
+          id: Date.now() + 2,
+          type,
+          orderId,
+          name: `${target.title} - Yêu cầu sửa: ${note || 'Cần chỉnh sửa bản final'}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          read: false
+        },
+        ...data.notifications
+      ];
     }
 
     if (action === 'delete') {

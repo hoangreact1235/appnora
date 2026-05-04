@@ -10,6 +10,8 @@ interface Order {
   size: string;
   version: string;
   content: string;
+  finalLink?: string;
+  revisionNote?: string;
 }
 
 interface DashboardProps {
@@ -18,6 +20,8 @@ interface DashboardProps {
   isAdmin?: boolean;
   onReceiveOrder?: (id: number) => void;
   onDeleteOrder?: (id: number) => void;
+  onSubmitFinal?: (id: number, finalLink: string) => void;
+  onRequestRevision?: (id: number, note: string) => void;
 }
 
 // Danh sách order mẫu dạng card
@@ -99,7 +103,7 @@ const ordersVideo = [
   }
 ];
 
-export default function Dashboard({ type = "video", orders = [], isAdmin = false, onReceiveOrder, onDeleteOrder }: DashboardProps) {
+export default function Dashboard({ type = "video", orders = [], isAdmin = false, onReceiveOrder, onDeleteOrder, onSubmitFinal, onRequestRevision }: DashboardProps) {
   return (
     <section className="w-full mt-12 mb-16 px-2 sm:px-4 bg-transparent">
       <h2 className="text-2xl font-bold text-[#D81B60] mb-8 text-left uppercase">
@@ -113,6 +117,8 @@ export default function Dashboard({ type = "video", orders = [], isAdmin = false
             isAdmin={isAdmin}
             onReceive={() => onReceiveOrder?.(order.id)}
             onDelete={() => onDeleteOrder?.(order.id)}
+            onSubmitFinal={(finalLink) => onSubmitFinal?.(order.id, finalLink)}
+            onRequestRevision={(note) => onRequestRevision?.(order.id, note)}
           />
         ))}
       </div>
