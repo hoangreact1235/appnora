@@ -3,6 +3,7 @@ import React from "react";
 interface Notification {
   id: number;
   type: string;
+  orderId: number;
   name: string;
   time: string;
   read: boolean;

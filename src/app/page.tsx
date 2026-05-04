@@ -32,11 +32,24 @@ export default function Home() {
     } catch {}
   }
 
-  // Fetch ngay khi load trang, sau đó poll mỗi 5 giây
+  // Fetch ngay khi load trang
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 5000);
-    return () => clearInterval(interval);
+
+    const eventSource = new EventSource('/api/orders-stream');
+    const onOrdersUpdated = () => {
+      fetchOrders();
+    };
+
+    eventSource.addEventListener('orders-updated', onOrdersUpdated as EventListener);
+    eventSource.onerror = () => {
+      // Khi mạng chập chờn, EventSource tự reconnect.
+    };
+
+    return () => {
+      eventSource.removeEventListener('orders-updated', onOrdersUpdated as EventListener);
+      eventSource.close();
+    };
   }, []);
 
   // Hàm thêm order mới - lưu lên server
@@ -56,6 +69,7 @@ export default function Home() {
     const notification = {
       id: Date.now() + 1,
       type,
+      orderId: newOrder.id,
       name: order.title || (type === 'design' ? 'Order Design' : 'Order Video'),
       time,
       read: false
@@ -74,6 +88,24 @@ export default function Home() {
       }
       setNotifications(prev => [notification, ...prev]);
     } catch {}
+  }
+
+  async function handleReceiveOrder(type: 'design' | 'video', orderId: number) {
+    await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'receive', type, orderId })
+    });
+    fetchOrders();
+  }
+
+  async function handleDeleteOrder(type: 'design' | 'video', orderId: number) {
+    await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', type, orderId })
+    });
+    fetchOrders();
   }
 
   function handleLogout() {
@@ -137,6 +169,8 @@ export default function Home() {
             type={activeTab === "order-design" ? "design" : "video"}
             orders={activeTab === "order-design" ? ordersDesign : ordersVideo}
             isAdmin={!!admin}
+            onReceiveOrder={(id) => handleReceiveOrder(activeTab === "order-design" ? 'design' : 'video', id)}
+            onDeleteOrder={(id) => handleDeleteOrder(activeTab === "order-design" ? 'design' : 'video', id)}
           />
         </section>
       </main>
@@ -159,10 +193,22 @@ export default function Home() {
             await fetch('/api/orders', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ notificationId: n.id })
+              body: JSON.stringify({ action: 'mark-read', notificationId: n.id })
             });
             setNotifications(notifications.map((x: any) => x.id === n.id ? { ...x, read: true } : x));
             setShowNotification(false);
+
+            if (n.type === 'design') {
+              setActiveTab('order-design');
+            } else {
+              setActiveTab('order-video');
+            }
+
+            setTimeout(() => {
+              if (!n.orderId) return;
+              const target = document.getElementById(`order-${n.orderId}`);
+              target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 150);
           }}
         />
       )}

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
+import { ordersEmitter } from '../../lib/ordersEvents';
 
 const ORDERS_FILE = path.join(process.cwd(), 'orders-data.json');
 
@@ -39,17 +40,43 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       data.notifications = [notification, ...data.notifications];
     }
     writeData(data);
+    ordersEmitter.emit('orders-updated');
     return res.json({ success: true });
   }
 
   if (req.method === 'PATCH') {
-    // Đánh dấu thông báo đã đọc
-    const { notificationId } = req.body;
+    const { action, notificationId, type, orderId } = req.body;
     const data = readData();
-    data.notifications = data.notifications.map((n: any) =>
-      n.id === notificationId ? { ...n, read: true } : n
-    );
+
+    if (action === 'mark-read') {
+      data.notifications = data.notifications.map((n: any) =>
+        n.id === notificationId ? { ...n, read: true } : n
+      );
+    }
+
+    if (action === 'receive') {
+      if (type === 'design') {
+        data.ordersDesign = data.ordersDesign.map((o: any) =>
+          o.id === orderId ? { ...o, status: 'Đã nhận' } : o
+        );
+      } else {
+        data.ordersVideo = data.ordersVideo.map((o: any) =>
+          o.id === orderId ? { ...o, status: 'Đã nhận' } : o
+        );
+      }
+    }
+
+    if (action === 'delete') {
+      if (type === 'design') {
+        data.ordersDesign = data.ordersDesign.filter((o: any) => o.id !== orderId);
+      } else {
+        data.ordersVideo = data.ordersVideo.filter((o: any) => o.id !== orderId);
+      }
+      data.notifications = data.notifications.filter((n: any) => n.orderId !== orderId);
+    }
+
     writeData(data);
+    ordersEmitter.emit('orders-updated');
     return res.json({ success: true });
   }
 

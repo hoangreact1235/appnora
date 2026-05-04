@@ -18,12 +18,13 @@ interface DashboardCardProps {
 const statusColor: Record<string, string> = {
   "Chờ xử lý": "bg-pink-200 text-pink-700",
   "Chờ duyệt": "bg-pink-100 text-pink-700",
+  "Đã nhận": "bg-emerald-100 text-emerald-700",
   "Hoàn thành": "bg-pink-300 text-pink-900",
 };
 
 export default function DashboardCard({ order, onDelete, onReceive, isAdmin = false }: DashboardCardProps) {
   return (
-    <div className="border border-pink-200 rounded-xl bg-white p-4 flex flex-col min-w-[180px] max-w-[220px] w-full shadow-sm">
+    <div id={`order-${order.id}`} className="border border-pink-200 rounded-xl bg-white p-4 flex flex-col min-w-[180px] max-w-[220px] w-full shadow-sm">
       <div className="flex items-center justify-between mb-2">
         <div className="font-bold text-[#6B184E] text-base">{order.title}</div>
         <span className={`px-3 py-1 rounded-lg text-xs font-semibold ml-2 whitespace-nowrap ${statusColor[order.status] || "bg-gray-100 text-gray-500"}`}>{order.status}</span>
