@@ -15,6 +15,7 @@ interface Order {
 interface DashboardProps {
   type?: "design" | "video";
   orders: Order[];
+  isAdmin?: boolean;
 }
 
 // Danh sách order mẫu dạng card
@@ -96,7 +97,7 @@ const ordersVideo = [
   }
 ];
 
-export default function Dashboard({ type = "video", orders = [] }: DashboardProps) {
+export default function Dashboard({ type = "video", orders = [], isAdmin = false }: DashboardProps) {
   return (
     <section className="w-full mt-12 mb-16 px-2 sm:px-4 bg-transparent">
       <h2 className="text-2xl font-bold text-[#D81B60] mb-8 text-left uppercase">
@@ -104,7 +105,7 @@ export default function Dashboard({ type = "video", orders = [] }: DashboardProp
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-6 w-full">
         {orders.map(order => (
-          <DashboardCard key={order.id} order={order} />
+          <DashboardCard key={order.id} order={order} isAdmin={isAdmin} />
         ))}
       </div>
     </section>

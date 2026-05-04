@@ -12,6 +12,7 @@ interface DashboardCardProps {
   };
   onDelete?: () => void;
   onReceive?: () => void;
+  isAdmin?: boolean;
 }
 
 const statusColor: Record<string, string> = {
@@ -20,7 +21,7 @@ const statusColor: Record<string, string> = {
   "Hoàn thành": "bg-pink-300 text-pink-900",
 };
 
-export default function DashboardCard({ order, onDelete, onReceive }: DashboardCardProps) {
+export default function DashboardCard({ order, onDelete, onReceive, isAdmin = false }: DashboardCardProps) {
   return (
     <div className="border border-pink-200 rounded-xl bg-white p-4 flex flex-col min-w-[180px] max-w-[220px] w-full shadow-sm">
       <div className="flex items-center justify-between mb-2">
@@ -33,10 +34,12 @@ export default function DashboardCard({ order, onDelete, onReceive }: DashboardC
       <div className="text-[15px] mb-2 font-semibold text-[#6B184E]">Nội dung yêu cầu:<br/>
         <span className="block text-[#6B184E] whitespace-pre-line line-clamp-3 font-normal">{order.content}</span>
       </div>
-      <div className="w-full flex gap-2 mt-auto justify-center">
-        <button className="bg-pink-400 hover:bg-pink-500 text-white font-semibold rounded px-2 py-1 text-sm transition whitespace-nowrap" onClick={onReceive}>Nhận thiết kế</button>
-        <button className="border border-pink-300 text-pink-700 font-semibold rounded px-2 py-1 text-sm hover:bg-pink-50 transition whitespace-nowrap" onClick={onDelete}>Xóa order</button>
-      </div>
+      {isAdmin && (
+        <div className="w-full flex gap-2 mt-auto justify-center">
+          <button className="bg-pink-400 hover:bg-pink-500 text-white font-semibold rounded px-2 py-1 text-sm transition whitespace-nowrap" onClick={onReceive}>Nhận thiết kế</button>
+          <button className="border border-pink-300 text-pink-700 font-semibold rounded px-2 py-1 text-sm hover:bg-pink-50 transition whitespace-nowrap" onClick={onDelete}>Xóa order</button>
+        </div>
+      )}
     </div>
   );
 }

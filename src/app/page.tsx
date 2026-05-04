@@ -149,6 +149,7 @@ export default function Home() {
           <Dashboard
             type={activeTab === "order-design" ? "design" : "video"}
             orders={activeTab === "order-design" ? ordersDesign : ordersVideo}
+            isAdmin={!!admin}
           />
         </section>
       </main>
