@@ -60,6 +60,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (action === 'receive') {
+      const targetOrdersR = type === 'design' ? data.ordersDesign : data.ordersVideo;
+      const receivedOrder = targetOrdersR.find((o: any) => o.id === orderId);
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.map((o: any) =>
           o.id === orderId ? { ...o, status: 'Đã nhận' } : o
@@ -69,9 +71,25 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           o.id === orderId ? { ...o, status: 'Đã nhận' } : o
         );
       }
+      if (receivedOrder) {
+        data.notifications = [
+          {
+            id: Date.now() + 1,
+            type,
+            orderId,
+            name: `${receivedOrder.title} - Đã được nhận`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            read: false,
+            forRole: 'user'
+          },
+          ...data.notifications
+        ];
+      }
     }
 
     if (action === 'deliver') {
+      const targetOrdersD = type === 'design' ? data.ordersDesign : data.ordersVideo;
+      const deliveredOrder = targetOrdersD.find((o: any) => o.id === orderId);
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.map((o: any) =>
           o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '' } : o
@@ -80,6 +98,20 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         data.ordersVideo = data.ordersVideo.map((o: any) =>
           o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '' } : o
         );
+      }
+      if (deliveredOrder) {
+        data.notifications = [
+          {
+            id: Date.now() + 1,
+            type,
+            orderId,
+            name: `${deliveredOrder.title} - Final link đã sẵn sàng`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            read: false,
+            forRole: 'user'
+          },
+          ...data.notifications
+        ];
       }
     }
 
@@ -106,7 +138,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           orderId,
           name: `${target.title} - Yêu cầu sửa: ${note || 'Cần chỉnh sửa bản final'}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          read: false
+          read: false,
+          forRole: 'admin'
         },
         ...data.notifications
       ];
@@ -134,7 +167,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           orderId,
           name: `${target.title} - Người order đã xác nhận hoàn thành`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          read: false
+          read: false,
+          forRole: 'admin'
         },
         ...data.notifications
       ];

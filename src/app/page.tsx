@@ -55,9 +55,12 @@ export default function Home() {
     };
   }, []);
 
-  // Phát âm thanh khi có thông báo mới (không chạy ở lần load đầu).
+  // Phát âm thanh khi có thông báo mới dành cho role hiện tại (không chạy ở lần load đầu).
   useEffect(() => {
-    const unreadCount = notifications.filter((n: { read: boolean }) => !n.read).length;
+    const myRole = admin ? 'admin' : 'user';
+    const unreadCount = notifications.filter((n: { read: boolean; forRole?: string }) =>
+      !n.read && (!n.forRole || n.forRole === myRole)
+    ).length;
 
     if (!didInitNotifications.current) {
       didInitNotifications.current = true;
@@ -73,7 +76,7 @@ export default function Home() {
     }
 
     prevUnreadCountRef.current = unreadCount;
-  }, [notifications]);
+  }, [notifications, admin]);
 
   // Sau khi bấm thông báo, chỉ cuộn khi tab + danh sách đã render xong.
   useEffect(() => {
@@ -114,7 +117,8 @@ export default function Home() {
       orderId: newOrder.id,
       name: order.title || (type === 'design' ? 'Order Design' : 'Order Video'),
       time,
-      read: false
+      read: false,
+      forRole: 'admin'
     };
     try {
       await fetch('/api/orders', {
