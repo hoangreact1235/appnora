@@ -41,7 +41,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(401).json({ error: 'User not found' });
   }
   if (user.password === password || bcrypt.compareSync(password, user.password)) {
-    return res.status(200).json({ success: true, username, role: user.role });
+    return res.status(200).json({
+      success: true,
+      username,
+      role: user.role,
+      displayName: user.displayName || username
+    });
   }
   return res.status(401).json({ error: 'Invalid password' });
 }
