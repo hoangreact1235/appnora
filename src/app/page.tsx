@@ -274,16 +274,25 @@ export default function Home() {
         </div>
         {/* Dashboard tách biệt phía dưới */}
         <section>
-          <Dashboard
-            type={activeTab === "order-design" ? "design" : "video"}
-            orders={activeTab === "order-design" ? ordersDesign : ordersVideo}
-            isAdmin={!!admin}
-            onReceiveOrder={(id) => handleReceiveOrder(activeTab === "order-design" ? 'design' : 'video', id)}
-            onDeleteOrder={(id) => handleDeleteOrder(activeTab === "order-design" ? 'design' : 'video', id)}
-            onSubmitFinal={(id, finalLink) => handleSubmitFinal(activeTab === "order-design" ? 'design' : 'video', id, finalLink)}
-            onRequestRevision={(id, note) => handleRequestRevision(activeTab === "order-design" ? 'design' : 'video', id, note)}
-            onApproveOrder={(id) => handleApproveOrder(activeTab === "order-design" ? 'design' : 'video', id)}
-          />
+          {(() => {
+            const currentType = activeTab === "order-design" ? "design" : "video";
+            // Staff chỉ thấy dashboard đúng role của mình
+            if (admin && admin.role !== 'admin' && admin.role !== currentType) return null;
+            // isAdmin (có quyền Nhận/Xóa) khi là admin hoặc đúng role dashboard đang xem
+            const canAct = !admin ? false : (admin.role === 'admin' || admin.role === currentType);
+            return (
+              <Dashboard
+                type={currentType}
+                orders={currentType === "design" ? ordersDesign : ordersVideo}
+                isAdmin={canAct}
+                onReceiveOrder={(id) => handleReceiveOrder(currentType, id)}
+                onDeleteOrder={(id) => handleDeleteOrder(currentType, id)}
+                onSubmitFinal={(id, finalLink) => handleSubmitFinal(currentType, id, finalLink)}
+                onRequestRevision={(id, note) => handleRequestRevision(currentType, id, note)}
+                onApproveOrder={(id) => handleApproveOrder(currentType, id)}
+              />
+            );
+          })()}
         </section>
       </main>
       {showLogin && (
