@@ -60,8 +60,8 @@ export default function OrderVideoForm({ onCreate }: { onCreate?: (order: any) =
         <label className="font-semibold text-[#D81B60] mt-0">Tên bộ phận *</label>
         <input {...register("department", { required: true })} placeholder="VD: Marketing" className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
 
-        <label className="font-semibold text-[#D81B60]">Loại ấn phẩm *</label>
-        <input {...register("type", { required: true })} placeholder="Nhập loại ấn phẩm..." className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
+        <label className="font-semibold text-[#D81B60]">Loại video *</label>
+        <input {...register("type", { required: true })} placeholder="Nhập loại video..." className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
 
         <label className="font-semibold text-[#D81B60]">Kích thước (Tỉ lệ) *</label>
         <input {...register("size", { required: true })} placeholder="Nhập kích thước hoặc tỉ lệ..." className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
