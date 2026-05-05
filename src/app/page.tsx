@@ -62,8 +62,8 @@ export default function Home() {
     const role = admin?.role || 'user';
     if (role === 'user') return !n.forRole || n.forRole === 'user';
     if (role === 'admin') return n.forRole === 'admin';
-    // design/video staff: chỉ nhận thông báo đúng loại
-    return n.forRole === 'admin' && (!n.forType || n.forType === role);
+    // design/video staff: chỉ nhận thông báo có forType khớp chính xác
+    return n.forRole === 'admin' && n.forType === role;
   }
 
   useEffect(() => {
