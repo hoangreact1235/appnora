@@ -19,6 +19,7 @@ interface DashboardCardProps {
   onRequestRevision?: (note: string) => void;
   onApprove?: () => void;
   isAdmin?: boolean;
+  isOrderer?: boolean;
 }
 
 const statusColor: Record<string, string> = {
@@ -29,7 +30,7 @@ const statusColor: Record<string, string> = {
   "Đã duyệt": "bg-sky-100 text-sky-700",
 };
 
-export default function DashboardCard({ order, onDelete, onReceive, onSubmitFinal, onRequestRevision, onApprove, isAdmin = false }: DashboardCardProps) {
+export default function DashboardCard({ order, onDelete, onReceive, onSubmitFinal, onRequestRevision, onApprove, isAdmin = false, isOrderer = false }: DashboardCardProps) {
   const [finalLink, setFinalLink] = useState(order.finalLink || "");
   const [revisionNote, setRevisionNote] = useState("");
   const [isContentExpanded, setIsContentExpanded] = useState(false);
@@ -102,7 +103,7 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
           </div>
         </div>
       )}
-      {!isAdmin && order.status === "Hoàn thành" && (
+      {isOrderer && !isAdmin && order.status === "Hoàn thành" && (
         <div className="w-full mt-auto">
           <textarea
             value={revisionNote}
@@ -131,14 +132,14 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
           </div>
         </div>
       )}
-      {!isAdmin && order.status === "Cần sửa" && (
+      {isOrderer && !isAdmin && order.status === "Cần sửa" && (
         <div className="w-full mt-auto">
           <div className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 text-center">
             Đã gửi yêu cầu sửa, vui lòng chờ bản mới.
           </div>
         </div>
       )}
-      {!isAdmin && order.status === "Đã duyệt" && (
+      {isOrderer && !isAdmin && order.status === "Đã duyệt" && (
         <div className="w-full mt-auto">
           <div className="text-[13px] text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-1 text-center">
             Order đã được xác nhận hoàn thành.

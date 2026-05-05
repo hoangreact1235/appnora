@@ -22,6 +22,7 @@ interface DashboardProps {
   type?: "design" | "video";
   orders: Order[];
   isAdmin?: boolean;
+  ordererTokens?: Record<number, string>;
   onReceiveOrder?: (id: number) => void;
   onDeleteOrder?: (id: number) => void;
   onSubmitFinal?: (id: number, finalLink: string) => void;
@@ -39,7 +40,7 @@ function formatGroupLabel(d: Date) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
-export default function Dashboard({ type = "video", orders = [], isAdmin = false, onReceiveOrder, onDeleteOrder, onSubmitFinal, onRequestRevision, onApproveOrder }: DashboardProps) {
+export default function Dashboard({ type = "video", orders = [], isAdmin = false, ordererTokens = {}, onReceiveOrder, onDeleteOrder, onSubmitFinal, onRequestRevision, onApproveOrder }: DashboardProps) {
   const [filterReceiver, setFilterReceiver] = useState("all");
   const [datePreset, setDatePreset] = useState<DatePresetKey>("today");
 
@@ -110,6 +111,7 @@ export default function Dashboard({ type = "video", orders = [], isAdmin = false
                     key={order.id}
                     order={order}
                     isAdmin={isAdmin}
+                    isOrderer={!!ordererTokens[order.id]}
                     onReceive={() => onReceiveOrder?.(order.id)}
                     onDelete={() => onDeleteOrder?.(order.id)}
                     onSubmitFinal={(finalLink) => onSubmitFinal?.(order.id, finalLink)}

@@ -24,6 +24,8 @@ export default function Home() {
   const [ordersVideo, setOrdersVideo] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [pendingScroll, setPendingScroll] = useState<{ orderId?: number; type: 'design' | 'video'; name?: string } | null>(null);
+  // ordererTokens: { [orderId]: token } — chỉ thiết bị đặt hàng mới có
+  const [ordererTokens, setOrdererTokens] = useState<Record<number, string>>({});
   const didInitNotifications = useRef(false);
   const prevUnreadCountRef = useRef(0);
 
@@ -42,6 +44,12 @@ export default function Home() {
   // Fetch ngay khi load trang
   useEffect(() => {
     fetchOrders();
+
+    // Load ordererTokens từ localStorage
+    try {
+      const stored = localStorage.getItem('nora_orderer_tokens');
+      if (stored) setOrdererTokens(JSON.parse(stored));
+    } catch {}
 
     const eventSource = new EventSource('/api/orders-stream');
     const onOrdersUpdated = () => {
@@ -119,7 +127,8 @@ export default function Home() {
   }) {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const newOrder = { ...order, id: Date.now(), createdAt: now.toISOString() };
+    const ordererToken = crypto.randomUUID();
+    const newOrder = { ...order, id: Date.now(), createdAt: now.toISOString(), ordererToken };
     const notification = {
       id: Date.now() + 1,
       type,
@@ -136,6 +145,10 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, order: newOrder, notification })
       });
+      // Lưu token vào localStorage để thiết bị này có quyền tác động
+      const updatedTokens = { ...ordererTokens, [newOrder.id]: ordererToken };
+      setOrdererTokens(updatedTokens);
+      try { localStorage.setItem('nora_orderer_tokens', JSON.stringify(updatedTokens)); } catch {}
       // Cập nhật state ngay lập tức (không cần chờ poll)
       if (type === 'design') {
         setOrdersDesign(prev => [newOrder, ...prev]);
@@ -205,7 +218,7 @@ export default function Home() {
     fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'request-revision', type, orderId, note })
+      body: JSON.stringify({ action: 'request-revision', type, orderId, note, ordererToken: ordererTokens[orderId] })
     }).catch(() => {
       fetchOrders();
     });
@@ -221,7 +234,7 @@ export default function Home() {
     fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'approve', type, orderId })
+      body: JSON.stringify({ action: 'approve', type, orderId, ordererToken: ordererTokens[orderId] })
     }).catch(() => {
       fetchOrders();
     });
@@ -297,6 +310,7 @@ export default function Home() {
                 type={currentType}
                 orders={currentType === "design" ? ordersDesign : ordersVideo}
                 isAdmin={canAct}
+                ordererTokens={ordererTokens}
                 onReceiveOrder={(id) => handleReceiveOrder(currentType, id)}
                 onDeleteOrder={(id) => handleDeleteOrder(currentType, id)}
                 onSubmitFinal={(id, finalLink) => handleSubmitFinal(currentType, id, finalLink)}

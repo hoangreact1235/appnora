@@ -30,7 +30,13 @@ function bumpVersion(version?: string) {
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     const data = readData();
-    return res.json(data);
+    // Strip ordererToken before returning to clients
+    const sanitized = {
+      ...data,
+      ordersDesign: (data.ordersDesign || []).map(({ ordererToken: _t, ...o }: any) => o),
+      ordersVideo: (data.ordersVideo || []).map(({ ordererToken: _t, ...o }: any) => o),
+    };
+    return res.json(sanitized);
   }
 
   if (req.method === 'POST') {
@@ -123,11 +129,17 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (action === 'request-revision') {
       const note = String(req.body.note || '').trim();
+      const clientToken = String(req.body.ordererToken || '');
       const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
       const target = targetOrders.find((o: any) => o.id === orderId);
 
       if (!target) {
         return res.status(404).json({ message: 'Order not found' });
+      }
+
+      // Validate token if order has one
+      if (target.ordererToken && target.ordererToken !== clientToken) {
+        return res.status(403).json({ message: 'Unauthorized' });
       }
 
       const updatedOrder = { ...target, status: 'Cần sửa', revisionNote: note };
@@ -153,11 +165,17 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (action === 'approve') {
+      const clientToken = String(req.body.ordererToken || '');
       const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
       const target = targetOrders.find((o: any) => o.id === orderId);
 
       if (!target) {
         return res.status(404).json({ message: 'Order not found' });
+      }
+
+      // Validate token if order has one
+      if (target.ordererToken && target.ordererToken !== clientToken) {
+        return res.status(403).json({ message: 'Unauthorized' });
       }
 
       const approvedOrder = { ...target, status: 'Đã duyệt' };
