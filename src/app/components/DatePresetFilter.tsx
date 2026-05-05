@@ -14,6 +14,7 @@ export default function DatePresetFilter({
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [recent, setRecent] = useState<DatePresetKey[]>([]);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -43,6 +44,17 @@ export default function DatePresetFilter({
     [recent]
   );
 
+  function toggleOpen() {
+    if (!open && wrapRef.current) {
+      const rect = wrapRef.current.getBoundingClientRect();
+      const approxHeight = 360;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < approxHeight && spaceAbove > spaceBelow);
+    }
+    setOpen((s) => !s);
+  }
+
   function applyPreset(next: DatePresetKey) {
     onChange(next);
     const merged = [next, ...recent.filter((r) => r !== next)].slice(0, 3);
@@ -57,13 +69,13 @@ export default function DatePresetFilter({
     <div className="relative" ref={wrapRef}>
       <button
         className="border border-pink-200 rounded-lg px-3 py-1.5 text-[#D81B60] font-semibold text-sm hover:bg-pink-50"
-        onClick={() => setOpen((s) => !s)}
+        onClick={toggleOpen}
       >
         {getPresetLabel(value)} <span className="ml-1">▾</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-[260px] max-h-[420px] overflow-y-auto rounded-xl border border-pink-100 bg-white shadow-lg z-50 p-3">
+        <div className={`absolute right-0 w-[260px] max-h-[320px] overflow-y-auto rounded-xl border border-pink-100 bg-white shadow-lg z-50 p-3 ${openUpward ? "bottom-full mb-2" : "top-full mt-2"}`}>
           {recentOptions.length > 0 && (
             <>
               <div className="text-sm font-semibold text-[#6B184E] mb-2">{label}</div>
