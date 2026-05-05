@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, ad
             </div>
             {/* Tầng 3: Đăng nhập + mô tả nhỏ */}
             <div className="flex flex-row gap-2 w-full justify-end items-center mt-1">
-              <span className="text-xs text-[#6B184E] mr-1">Người order design/video không cần đăng nhập</span>
+              {!admin && <span className="text-xs text-[#6B184E] mr-1">Người order design/video không cần đăng nhập</span>}
               {admin ? (
                 <>
                   <span className="flex items-center gap-2">
