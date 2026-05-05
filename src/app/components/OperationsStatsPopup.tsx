@@ -1,5 +1,7 @@
 "use client";
 import React, { useMemo, useState } from "react";
+import DatePresetFilter from "./DatePresetFilter";
+import { DatePresetKey, getOrderCreatedDate, inDatePreset, parseAnyDate, toDateKey } from "../utils/datePresetUtils";
 
 type StatsOrder = {
   id: number;
@@ -15,27 +17,8 @@ type StatsOrder = {
   type: "design" | "video";
 };
 
-type RangeKey = "7d" | "30d" | "all";
-
-function parseAnyDate(value?: string) {
-  if (!value) return null;
-  const direct = new Date(value);
-  if (!Number.isNaN(direct.getTime())) return direct;
-
-  // Fallback format: HH:mm DD/MM/YYYY
-  const m = String(value).match(/^(\d{2}):(\d{2})\s(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return null;
-  const [, hh, mm, dd, mo, yyyy] = m;
-  const d = new Date(Number(yyyy), Number(mo) - 1, Number(dd), Number(hh), Number(mm));
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
 function isDoneStatus(status: string) {
   return status === "Hoàn thành" || status === "Đã duyệt";
-}
-
-function toDateKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export default function OperationsStatsPopup({
@@ -47,7 +30,7 @@ export default function OperationsStatsPopup({
   ordersVideo: any[];
   onClose: () => void;
 }) {
-  const [range, setRange] = useState<RangeKey>("30d");
+  const [range, setRange] = useState<DatePresetKey>("today");
 
   const allOrders: StatsOrder[] = useMemo(
     () => [
@@ -58,15 +41,10 @@ export default function OperationsStatsPopup({
   );
 
   const filteredOrders = useMemo(() => {
-    if (range === "all") return allOrders;
-    const now = Date.now();
-    const dayMs = 24 * 60 * 60 * 1000;
-    const span = range === "7d" ? 7 * dayMs : 30 * dayMs;
     return allOrders.filter((o) => {
-      const created = parseAnyDate(o.createdAt);
-      if (created) return now - created.getTime() <= span;
-      if (typeof o.id === "number" && o.id > 1000000000000) return now - o.id <= span;
-      return false;
+      const created = getOrderCreatedDate(o);
+      if (!created) return range === "all";
+      return inDatePreset(created, range);
     });
   }, [allOrders, range]);
 
@@ -193,16 +171,7 @@ export default function OperationsStatsPopup({
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <h2 className="text-2xl font-bold text-pink-600">Thống kê vận hành</h2>
           <div className="flex items-center gap-2">
-            <select
-              title="Khoảng thời gian"
-              value={range}
-              onChange={(e) => setRange(e.target.value as RangeKey)}
-              className="border border-pink-200 rounded-lg px-3 py-2 text-[#6B184E] font-semibold"
-            >
-              <option value="7d">7 ngày gần nhất</option>
-              <option value="30d">30 ngày gần nhất</option>
-              <option value="all">Toàn bộ dữ liệu</option>
-            </select>
+            <DatePresetFilter value={range} onChange={setRange} storageKey="nora_ops_recent_presets" />
             <button
               className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-4 py-2 rounded-lg"
               onClick={exportCsv}
