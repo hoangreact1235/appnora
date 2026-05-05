@@ -36,10 +36,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     const { type, order, notification } = req.body;
     const data = readData();
+    const preparedOrder = {
+      ...order,
+      createdAt: order?.createdAt || new Date().toISOString()
+    };
     if (type === 'design') {
-      data.ordersDesign = [order, ...data.ordersDesign];
+      data.ordersDesign = [preparedOrder, ...data.ordersDesign];
     } else {
-      data.ordersVideo = [order, ...data.ordersVideo];
+      data.ordersVideo = [preparedOrder, ...data.ordersVideo];
     }
     if (notification) {
       data.notifications = [notification, ...data.notifications];
@@ -64,11 +68,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       const receivedOrder = targetOrdersR.find((o: any) => o.id === orderId);
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '' } : o
+          o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '', receivedAt: o.receivedAt || new Date().toISOString() } : o
         );
       } else {
         data.ordersVideo = data.ordersVideo.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '' } : o
+          o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '', receivedAt: o.receivedAt || new Date().toISOString() } : o
         );
       }
       if (receivedOrder) {
@@ -93,11 +97,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       const deliveredOrder = targetOrdersD.find((o: any) => o.id === orderId);
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '' } : o
+          o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '', completedAt: new Date().toISOString() } : o
         );
       } else {
         data.ordersVideo = data.ordersVideo.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '' } : o
+          o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '', completedAt: new Date().toISOString() } : o
         );
       }
       if (deliveredOrder) {

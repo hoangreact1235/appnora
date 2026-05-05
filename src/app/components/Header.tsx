@@ -10,11 +10,12 @@ interface HeaderProps {
   onLogout?: () => void;
   onShowCreateUser?: () => void;
   onShowStaffManagement?: () => void;
+  onShowOpsStats?: () => void;
   onShowNotification?: () => void;
   notificationCount?: number;
 }
 
-const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, admin, onLogout, onShowCreateUser, onShowStaffManagement, onShowNotification, notificationCount = 0 }) => {
+const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, admin, onLogout, onShowCreateUser, onShowStaffManagement, onShowOpsStats, onShowNotification, notificationCount = 0 }) => {
   // Xác định tên hiển thị
   let displayName = '';
   if (admin) {
@@ -58,7 +59,9 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange, onShowLogin, ad
                   )}
                 </button>
               )}
-              <button className="bg-white text-[#6B184E] font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-[#FDE7F0] transition">THỐNG KÊ VẬN HÀNH <span className="ml-1">▼</span></button>
+              {admin?.role === 'admin' && (
+                <button className="bg-white text-[#6B184E] font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-[#FDE7F0] transition" onClick={onShowOpsStats}>THỐNG KÊ VẬN HÀNH <span className="ml-1">▼</span></button>
+              )}
             </div>
             {/* Tầng 3: Đăng nhập + mô tả nhỏ */}
             <div className="flex flex-row gap-2 w-full justify-end items-center mt-1">

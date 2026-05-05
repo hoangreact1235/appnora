@@ -11,12 +11,14 @@ import Dashboard from "./components/Dashboard";
 import CreateUserPopup from "./components/CreateUserPopup";
 import StaffManagement from "./components/StaffManagement";
 import NotificationPopup from "./components/NotificationPopup";
+import OperationsStatsPopup from "./components/OperationsStatsPopup";
 export default function Home() {
   const [activeTab, setActiveTab] = useState("order-design");
   const [admin, setAdmin] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [showStaffManagement, setShowStaffManagement] = useState(false);
+  const [showOpsStats, setShowOpsStats] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [ordersDesign, setOrdersDesign] = useState<any[]>([]);
   const [ordersVideo, setOrdersVideo] = useState<any[]>([]);
@@ -117,7 +119,7 @@ export default function Home() {
   }) {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const newOrder = { ...order, id: Date.now() };
+    const newOrder = { ...order, id: Date.now(), createdAt: now.toISOString() };
     const notification = {
       id: Date.now() + 1,
       type,
@@ -146,10 +148,11 @@ export default function Home() {
 
   async function handleReceiveOrder(type: 'design' | 'video', orderId: number) {
     const receivedBy = admin?.displayName || admin?.username || '';
+    const receivedAt = new Date().toISOString();
     if (type === 'design') {
-      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy } : o)));
+      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy, receivedAt: o.receivedAt || receivedAt } : o)));
     } else {
-      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy } : o)));
+      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy, receivedAt: o.receivedAt || receivedAt } : o)));
     }
 
     fetch('/api/orders', {
@@ -173,10 +176,12 @@ export default function Home() {
   async function handleSubmitFinal(type: 'design' | 'video', orderId: number, finalLink: string) {
     if (!finalLink) return;
 
+    const completedAt = new Date().toISOString();
+
     if (type === 'design') {
-      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink } : o)));
+      setOrdersDesign(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, completedAt } : o)));
     } else {
-      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink } : o)));
+      setOrdersVideo(prev => prev.map((o: any) => (o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, completedAt } : o)));
     }
 
     fetch('/api/orders', {
@@ -271,6 +276,7 @@ export default function Home() {
         onLogout={handleLogout}
         onShowCreateUser={() => setShowCreateUser(true)}
         onShowStaffManagement={() => setShowStaffManagement(true)}
+        onShowOpsStats={() => setShowOpsStats(true)}
         onShowNotification={() => setShowNotification(true)}
         notificationCount={notifications.filter((n: any) => !n.read && isNotifForMe(n)).length}
       />
@@ -320,6 +326,13 @@ export default function Home() {
       )}
       {showStaffManagement && (
         <StaffManagement onClose={() => setShowStaffManagement(false)} />
+      )}
+      {admin?.role === 'admin' && showOpsStats && (
+        <OperationsStatsPopup
+          ordersDesign={ordersDesign}
+          ordersVideo={ordersVideo}
+          onClose={() => setShowOpsStats(false)}
+        />
       )}
       {admin && showNotification && (
         <NotificationPopup
