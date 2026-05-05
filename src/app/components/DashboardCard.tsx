@@ -78,7 +78,7 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
       )}
       {isAdmin && order.status === "Chờ xử lý" && (
         <div className="w-full flex gap-2 mt-auto justify-center">
-          <button className="bg-pink-400 hover:bg-pink-500 text-white font-semibold rounded px-2 py-1 text-sm transition whitespace-nowrap" onClick={onReceive}>Nhận thiết kế</button>
+          <button className="bg-pink-400 hover:bg-pink-500 text-white font-semibold rounded px-2 py-1 text-sm transition whitespace-nowrap" onClick={onReceive}>Nhận order</button>
           <button className="border border-pink-300 text-pink-700 font-semibold rounded px-2 py-1 text-sm hover:bg-pink-50 transition whitespace-nowrap" onClick={onDelete}>Xóa order</button>
         </div>
       )}

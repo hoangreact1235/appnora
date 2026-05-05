@@ -187,6 +187,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       data.notifications = data.notifications.filter((n: any) => n.orderId !== orderId);
     }
 
+    if (action === 'clear-notifications') {
+      // Xóa tất cả notifications cũ không có forType (chỉ giữ notifications mới có đầy đủ thông tin)
+      data.notifications = data.notifications.filter((n: any) => n.forType && n.forRole);
+    }
+
     writeData(data);
     ordersEmitter.emit('orders-updated');
     return res.json({ success: true });
