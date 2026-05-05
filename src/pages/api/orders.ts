@@ -80,7 +80,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             name: `${receivedOrder.title} - Đã được nhận`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             read: false,
-            forRole: 'user'
+            forRole: 'user',
+            forType: type
           },
           ...data.notifications
         ];
@@ -108,7 +109,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             name: `${deliveredOrder.title} - Final link đã sẵn sàng`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             read: false,
-            forRole: 'user'
+            forRole: 'user',
+            forType: type
           },
           ...data.notifications
         ];
@@ -139,7 +141,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           name: `${target.title} - Yêu cầu sửa: ${note || 'Cần chỉnh sửa bản final'}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           read: false,
-          forRole: 'admin'
+          forRole: 'admin',
+          forType: type
         },
         ...data.notifications
       ];
@@ -168,7 +171,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           name: `${target.title} - Người order đã xác nhận hoàn thành`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           read: false,
-          forRole: 'admin'
+          forRole: 'admin',
+          forType: type
         },
         ...data.notifications
       ];

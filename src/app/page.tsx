@@ -58,11 +58,16 @@ export default function Home() {
   }, []);
 
   // Phát âm thanh khi có thông báo mới dành cho role hiện tại (không chạy ở lần load đầu).
+  function isNotifForMe(n: any) {
+    const role = admin?.role || 'user';
+    if (role === 'user') return !n.forRole || n.forRole === 'user';
+    if (role === 'admin') return n.forRole === 'admin';
+    // design/video staff: chỉ nhận thông báo đúng loại
+    return n.forRole === 'admin' && (!n.forType || n.forType === role);
+  }
+
   useEffect(() => {
-    const myRole = admin ? 'admin' : 'user';
-    const unreadCount = notifications.filter((n: { read: boolean; forRole?: string }) =>
-      !n.read && (!n.forRole || n.forRole === myRole)
-    ).length;
+    const unreadCount = notifications.filter((n: any) => !n.read && isNotifForMe(n)).length;
 
     if (!didInitNotifications.current) {
       didInitNotifications.current = true;
@@ -120,7 +125,8 @@ export default function Home() {
       name: order.title || (type === 'design' ? 'Order Design' : 'Order Video'),
       time,
       read: false,
-      forRole: 'admin'
+      forRole: 'admin',
+      forType: type
     };
     try {
       await fetch('/api/orders', {
@@ -266,7 +272,7 @@ export default function Home() {
         onShowCreateUser={() => setShowCreateUser(true)}
         onShowStaffManagement={() => setShowStaffManagement(true)}
         onShowNotification={() => setShowNotification(true)}
-        notificationCount={notifications.filter((n: { read: boolean }) => !n.read).length}
+        notificationCount={notifications.filter((n: any) => !n.read && isNotifForMe(n)).length}
       />
       <main className="flex-1 w-full px-0 py-6">
         <div className="bg-white rounded-xl shadow p-2 md:p-6 w-full">
@@ -317,7 +323,7 @@ export default function Home() {
       )}
       {admin && showNotification && (
         <NotificationPopup
-          notifications={notifications}
+          notifications={notifications.filter((n: any) => isNotifForMe(n))}
           onClose={() => setShowNotification(false)}
           onClickNotification={async n => {
             fetch('/api/orders', {
@@ -327,13 +333,17 @@ export default function Home() {
             }).catch(() => {});
             setNotifications(notifications.map((x: any) => x.id === n.id ? { ...x, read: true } : x));
             setShowNotification(false);
-
-            if (n.type === 'design') {
+            // Chỉ chuyển tab nếu role có quyền xem dashboard đó
+            const role = admin?.role || 'admin';
+            const canViewDesign = role === 'admin' || role === 'design';
+            const canViewVideo = role === 'admin' || role === 'video';
+            if (n.type === 'design' && canViewDesign) {
               setActiveTab('order-design');
-            } else {
+              setPendingScroll({ orderId: n.orderId, type: n.type, name: n.name });
+            } else if (n.type === 'video' && canViewVideo) {
               setActiveTab('order-video');
+              setPendingScroll({ orderId: n.orderId, type: n.type, name: n.name });
             }
-            setPendingScroll({ orderId: n.orderId, type: n.type, name: n.name });
           }}
         />
       )}
