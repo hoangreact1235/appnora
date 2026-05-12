@@ -5,11 +5,15 @@ import { DATE_PRESET_OPTIONS, DatePresetKey, getPresetLabel } from "../utils/dat
 export default function DatePresetFilter({
   value,
   onChange,
+  customDate,
+  onCustomDateChange,
   storageKey,
   label = "Đã dùng mới đây",
 }: {
   value: DatePresetKey;
   onChange: (value: DatePresetKey) => void;
+  customDate?: string;
+  onCustomDateChange?: (value: string) => void;
   storageKey: string;
   label?: string;
 }) {
@@ -118,6 +122,21 @@ export default function DatePresetFilter({
               );
             })}
           </div>
+
+          <div className="border-t border-gray-200 my-3" />
+          <div className="text-sm font-semibold text-[#6B184E] mb-2">Chọn từng ngày</div>
+          <input
+            type="date"
+            aria-label="Chọn ngày cụ thể"
+            title="Chọn ngày cụ thể"
+            value={customDate || ""}
+            onChange={(e) => {
+              const picked = e.target.value;
+              onCustomDateChange?.(picked);
+              if (picked) applyPreset("custom_day");
+            }}
+            className="w-full rounded-lg border border-pink-200 px-3 py-2 text-sm text-[#6B184E] focus:outline-none focus:ring-2 focus:ring-pink-200"
+          />
         </div>
       )}
     </div>

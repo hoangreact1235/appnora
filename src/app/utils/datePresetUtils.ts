@@ -2,6 +2,7 @@ export type DatePresetKey =
   | "today"
   | "yesterday"
   | "today_yesterday"
+  | "custom_day"
   | "7d"
   | "14d"
   | "28d"
@@ -16,6 +17,7 @@ export const DATE_PRESET_OPTIONS: Array<{ key: DatePresetKey; label: string }> =
   { key: "today", label: "Hôm nay" },
   { key: "yesterday", label: "Hôm qua" },
   { key: "today_yesterday", label: "Hôm nay và hôm qua" },
+  { key: "custom_day", label: "Ngày cụ thể" },
   { key: "7d", label: "7 ngày qua" },
   { key: "14d", label: "14 ngày qua" },
   { key: "28d", label: "28 ngày qua" },
@@ -85,7 +87,7 @@ function endOfWeekSunday(d: Date) {
   return endOfDay(end);
 }
 
-export function inDatePreset(date: Date, preset: DatePresetKey, now = new Date()) {
+export function inDatePreset(date: Date, preset: DatePresetKey, now = new Date(), customDate?: string) {
   if (preset === "all") return true;
 
   const targetMs = date.getTime();
@@ -106,6 +108,15 @@ export function inDatePreset(date: Date, preset: DatePresetKey, now = new Date()
     const y = new Date(todayStart);
     y.setDate(y.getDate() - 1);
     return targetMs >= y.getTime() && targetMs <= todayEnd.getTime();
+  }
+
+  if (preset === "custom_day") {
+    if (!customDate) return false;
+    const selected = new Date(customDate);
+    if (Number.isNaN(selected.getTime())) return false;
+    const start = startOfDay(selected);
+    const end = endOfDay(selected);
+    return targetMs >= start.getTime() && targetMs <= end.getTime();
   }
 
   if (preset === "7d" || preset === "14d" || preset === "28d" || preset === "30d") {

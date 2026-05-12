@@ -31,6 +31,18 @@ export default function OperationsStatsPopup({
   onClose: () => void;
 }) {
   const [range, setRange] = useState<DatePresetKey>("today");
+  const [customDate, setCustomDate] = useState<string>("");
+
+  function handleRangeChange(next: DatePresetKey) {
+    setRange(next);
+    if (next === "custom_day" && !customDate) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      setCustomDate(`${yyyy}-${mm}-${dd}`);
+    }
+  }
 
   const allOrders: StatsOrder[] = useMemo(
     () => [
@@ -44,9 +56,9 @@ export default function OperationsStatsPopup({
     return allOrders.filter((o) => {
       const created = getOrderCreatedDate(o);
       if (!created) return range === "all";
-      return inDatePreset(created, range);
+      return inDatePreset(created, range, new Date(), customDate);
     });
-  }, [allOrders, range]);
+  }, [allOrders, range, customDate]);
 
   const kpi = useMemo(() => {
     const total = filteredOrders.length;
@@ -171,7 +183,13 @@ export default function OperationsStatsPopup({
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <h2 className="text-2xl font-bold text-pink-600">Thống kê vận hành</h2>
           <div className="flex items-center gap-2">
-            <DatePresetFilter value={range} onChange={setRange} storageKey="nora_ops_recent_presets" />
+            <DatePresetFilter
+              value={range}
+              onChange={handleRangeChange}
+              customDate={customDate}
+              onCustomDateChange={setCustomDate}
+              storageKey="nora_ops_recent_presets"
+            />
             <button
               className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-4 py-2 rounded-lg"
               onClick={exportCsv}

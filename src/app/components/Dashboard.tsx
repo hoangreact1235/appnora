@@ -43,6 +43,7 @@ function formatGroupLabel(d: Date) {
 export default function Dashboard({ type = "video", orders = [], isAdmin = false, ordererTokens = {}, onReceiveOrder, onDeleteOrder, onSubmitFinal, onRequestRevision, onApproveOrder }: DashboardProps) {
   const [filterReceiver, setFilterReceiver] = useState("all");
   const [datePreset, setDatePreset] = useState<DatePresetKey>("today");
+  const [customDate, setCustomDate] = useState<string>("");
 
   // Lấy danh sách người nhận duy nhất
   const receivers = Array.from(new Set(orders.filter(o => o.receivedBy).map(o => o.receivedBy as string)));
@@ -52,9 +53,20 @@ export default function Dashboard({ type = "video", orders = [], isAdmin = false
       if (filterReceiver !== "all" && o.receivedBy !== filterReceiver) return false;
       const created = getOrderCreatedDate(o);
       if (!created) return datePreset === "all";
-      return inDatePreset(created, datePreset);
+      return inDatePreset(created, datePreset, new Date(), customDate);
     });
-  }, [orders, filterReceiver, datePreset]);
+  }, [orders, filterReceiver, datePreset, customDate]);
+
+  function handlePresetChange(next: DatePresetKey) {
+    setDatePreset(next);
+    if (next === "custom_day" && !customDate) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      setCustomDate(`${yyyy}-${mm}-${dd}`);
+    }
+  }
 
   const groupedOrders = useMemo(() => {
     const map = new Map<string, { label: string; dateValue: number; items: Order[] }>();
@@ -81,7 +93,13 @@ export default function Dashboard({ type = "video", orders = [], isAdmin = false
         <h2 className="text-2xl font-bold text-[#D81B60] uppercase">
           {type === "design" ? "Dashboard Order Design" : "Dashboard Order Video"}
         </h2>
-        <DatePresetFilter value={datePreset} onChange={setDatePreset} storageKey={`nora_dashboard_${type}_recent_presets`} />
+        <DatePresetFilter
+          value={datePreset}
+          onChange={handlePresetChange}
+          customDate={customDate}
+          onCustomDateChange={setCustomDate}
+          storageKey={`nora_dashboard_${type}_recent_presets`}
+        />
         {receivers.length > 0 && (
           <select
             title="Lọc theo người nhận"
