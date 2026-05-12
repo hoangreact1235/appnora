@@ -16,9 +16,9 @@ export const metadata: Metadata = {
   title: "Nora Care",
   description: "Nora Care order management dashboard",
   icons: {
-    icon: "/logo-nora-care-pink-clean.png",
-    shortcut: "/logo-nora-care-pink-clean.png",
-    apple: "/logo-nora-care-pink-clean.png",
+    icon: "/favicon-32.png",
+    shortcut: "/favicon-32.png",
+    apple: "/favicon-32.png",
   },
 };
 
