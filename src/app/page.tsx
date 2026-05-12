@@ -12,6 +12,9 @@ import CreateUserPopup from "./components/CreateUserPopup";
 import StaffManagement from "./components/StaffManagement";
 import NotificationPopup from "./components/NotificationPopup";
 import OperationsStatsPopup from "./components/OperationsStatsPopup";
+
+const ADMIN_SESSION_KEY = "nora_admin_session";
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState("order-design");
   const [admin, setAdmin] = useState<any>(null);
@@ -44,6 +47,19 @@ export default function Home() {
   // Fetch ngay khi load trang
   useEffect(() => {
     fetchOrders();
+
+    // Restore phiên đăng nhập sau khi F5
+    try {
+      const storedAdmin = localStorage.getItem(ADMIN_SESSION_KEY);
+      if (storedAdmin) {
+        const parsed = JSON.parse(storedAdmin);
+        if (parsed?.username && parsed?.role) {
+          setAdmin(parsed);
+          if (parsed.role === "design") setActiveTab("order-design");
+          if (parsed.role === "video") setActiveTab("order-video");
+        }
+      }
+    } catch {}
 
     // Load ordererTokens từ localStorage
     try {
@@ -242,6 +258,7 @@ export default function Home() {
 
   function handleLogout() {
     setAdmin(null);
+    try { localStorage.removeItem(ADMIN_SESSION_KEY); } catch {}
   }
 
   function renderTabContent() {
@@ -327,6 +344,14 @@ export default function Home() {
             <button className="absolute top-2 right-2 text-xl text-gray-500 hover:text-pink-600" onClick={() => setShowLogin(false)}>&times;</button>
             <AdminLogin onLogin={user => {
               setAdmin(user);
+              try {
+                const sessionUser = {
+                  username: user?.username,
+                  displayName: user?.displayName,
+                  role: user?.role,
+                };
+                localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessionUser));
+              } catch {}
               setShowLogin(false);
               // Auto-switch tab theo role
               if (user.role === 'design') setActiveTab('order-design');
