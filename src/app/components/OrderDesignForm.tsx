@@ -4,6 +4,21 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { FiUpload } from "react-icons/fi";
 
+const DESIGN_TYPE_SUGGESTIONS = [
+  "Ảnh tuyển dụng",
+  "Poster social",
+  "Nhãn sản phẩm",
+  "Thumbnail",
+  "Standee",
+];
+
+const SIZE_RATIO_SUGGESTIONS = [
+  "1:1 -> ảnh vuông (Facebook post)",
+  "9:16 -> ảnh/video dọc (TikTok, Reels, Story)",
+  "16:9 -> ảnh ngang (YouTube, trình chiếu)",
+  "A4 -> file in giấy",
+];
+
 interface OrderDesignFormData {
   department: string;
   type: string;
@@ -71,10 +86,30 @@ export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) 
         <input {...register("department", { required: true })} placeholder="VD: Marketing" className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
 
         <label className="font-semibold text-[#D81B60]">Loại ấn phẩm *</label>
-        <input {...register("type", { required: true })} placeholder="Nhập loại ấn phẩm..." className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
+        <input
+          {...register("type", { required: true })}
+          list="design-type-suggestions"
+          placeholder="Nhập loại ấn phẩm..."
+          className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]"
+        />
+        <datalist id="design-type-suggestions">
+          {DESIGN_TYPE_SUGGESTIONS.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
 
         <label className="font-semibold text-[#D81B60]">Kích thước (Tỉ lệ) *</label>
-        <input {...register("size", { required: true })} placeholder="Nhập kích thước hoặc tỉ lệ..." className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
+        <input
+          {...register("size", { required: true })}
+          list="size-ratio-suggestions"
+          placeholder="Nhập kích thước hoặc tỉ lệ..."
+          className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]"
+        />
+        <datalist id="size-ratio-suggestions">
+          {SIZE_RATIO_SUGGESTIONS.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
 
         <label className="font-semibold text-[#D81B60]">Deadline *</label>
         <input
