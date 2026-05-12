@@ -4,6 +4,19 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { FiUpload } from "react-icons/fi";
 
+const VIDEO_TYPE_SUGGESTIONS = [
+  "Video review",
+  "Video tuyển dụng",
+  "Video ads",
+  "Video TikTok",
+];
+
+const VIDEO_SIZE_RATIO_SUGGESTIONS = [
+  "9:16 -> video dọc (TikTok, Reels, Story)",
+  "16:9 -> video ngang YouTube",
+  "1:1 -> video vuông",
+];
+
 interface OrderVideoFormData {
   department: string;
   type: string;
@@ -61,10 +74,30 @@ export default function OrderVideoForm({ onCreate }: { onCreate?: (order: any) =
         <input {...register("department", { required: true })} placeholder="VD: Marketing" className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
 
         <label className="font-semibold text-[#D81B60]">Loại video *</label>
-        <input {...register("type", { required: true })} placeholder="Nhập loại video..." className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
+        <input
+          {...register("type", { required: true })}
+          list="video-type-suggestions"
+          placeholder="Nhập loại video..."
+          className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]"
+        />
+        <datalist id="video-type-suggestions">
+          {VIDEO_TYPE_SUGGESTIONS.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
 
         <label className="font-semibold text-[#D81B60]">Kích thước (Tỉ lệ) *</label>
-        <input {...register("size", { required: true })} placeholder="Nhập kích thước hoặc tỉ lệ..." className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
+        <input
+          {...register("size", { required: true })}
+          list="video-size-ratio-suggestions"
+          placeholder="Nhập kích thước hoặc tỉ lệ..."
+          className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]"
+        />
+        <datalist id="video-size-ratio-suggestions">
+          {VIDEO_SIZE_RATIO_SUGGESTIONS.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
 
         <label className="font-semibold text-[#D81B60]">Deadline *</label>
         <input
