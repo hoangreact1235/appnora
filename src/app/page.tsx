@@ -15,6 +15,16 @@ import OperationsStatsPopup from "./components/OperationsStatsPopup";
 
 const ADMIN_SESSION_KEY = "nora_admin_session";
 
+function normalizeAdminSession(user: any) {
+  if (!user?.username) return null;
+  const role = user.role === "admin" || user.role === "design" || user.role === "video" ? user.role : "admin";
+  return {
+    username: user.username,
+    displayName: user.displayName || user.username,
+    role,
+  };
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState("order-design");
   const [admin, setAdmin] = useState<any>(null);
@@ -53,10 +63,11 @@ export default function Home() {
       const storedAdmin = localStorage.getItem(ADMIN_SESSION_KEY);
       if (storedAdmin) {
         const parsed = JSON.parse(storedAdmin);
-        if (parsed?.username && parsed?.role) {
-          setAdmin(parsed);
-          if (parsed.role === "design") setActiveTab("order-design");
-          if (parsed.role === "video") setActiveTab("order-video");
+        const restored = normalizeAdminSession(parsed);
+        if (restored) {
+          setAdmin(restored);
+          if (restored.role === "design") setActiveTab("order-design");
+          if (restored.role === "video") setActiveTab("order-video");
         }
       }
     } catch {}
@@ -82,6 +93,20 @@ export default function Home() {
       eventSource.close();
     };
   }, []);
+
+  useEffect(() => {
+    // Đồng bộ session khi trạng thái admin thay đổi
+    try {
+      if (!admin) {
+        localStorage.removeItem(ADMIN_SESSION_KEY);
+        return;
+      }
+      const normalized = normalizeAdminSession(admin);
+      if (normalized) {
+        localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(normalized));
+      }
+    } catch {}
+  }, [admin]);
 
   // Phát âm thanh khi có thông báo mới dành cho role hiện tại (không chạy ở lần load đầu).
   function isNotifForMe(n: any) {
@@ -343,19 +368,12 @@ export default function Home() {
           <div className="relative">
             <button className="absolute top-2 right-2 text-xl text-gray-500 hover:text-pink-600" onClick={() => setShowLogin(false)}>&times;</button>
             <AdminLogin onLogin={user => {
-              setAdmin(user);
-              try {
-                const sessionUser = {
-                  username: user?.username,
-                  displayName: user?.displayName,
-                  role: user?.role,
-                };
-                localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessionUser));
-              } catch {}
+              const normalized = normalizeAdminSession(user);
+              if (normalized) setAdmin(normalized);
               setShowLogin(false);
               // Auto-switch tab theo role
-              if (user.role === 'design') setActiveTab('order-design');
-              else if (user.role === 'video') setActiveTab('order-video');
+              if (normalized?.role === 'design') setActiveTab('order-design');
+              else if (normalized?.role === 'video') setActiveTab('order-video');
             }} />
           </div>
         </div>
