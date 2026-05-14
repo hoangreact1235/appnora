@@ -12,6 +12,7 @@ import CreateUserPopup from "./components/CreateUserPopup";
 import StaffManagement from "./components/StaffManagement";
 import NotificationPopup from "./components/NotificationPopup";
 import OperationsStatsPopup from "./components/OperationsStatsPopup";
+import DeletedOrdersPopup from "./components/DeletedOrdersPopup";
 
 const ADMIN_SESSION_KEY = "nora_admin_session";
 
@@ -32,31 +33,47 @@ export default function Home() {
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [showStaffManagement, setShowStaffManagement] = useState(false);
   const [showOpsStats, setShowOpsStats] = useState(false);
+  const [showDeletedOrders, setShowDeletedOrders] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [ordersDesign, setOrdersDesign] = useState<any[]>([]);
   const [ordersVideo, setOrdersVideo] = useState<any[]>([]);
+  const [deletedOrders, setDeletedOrders] = useState<any[]>([]);
+  const [orderAuditLogs, setOrderAuditLogs] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [pendingScroll, setPendingScroll] = useState<{ orderId?: number; type: 'design' | 'video'; name?: string } | null>(null);
   // ordererTokens: { [orderId]: token } — chỉ thiết bị đặt hàng mới có
   const [ordererTokens, setOrdererTokens] = useState<Record<number, string>>({});
   const didInitNotifications = useRef(false);
   const prevUnreadCountRef = useRef(0);
+  const currentRoleRef = useRef<'admin' | 'design' | 'video' | 'user'>('user');
 
   // Fetch orders từ server (cả 2 trình duyệt đều đọc từ cùng 1 nơi)
-  async function fetchOrders() {
+  async function fetchOrders(roleOverride?: 'admin' | 'design' | 'video' | 'user') {
     try {
-      const res = await fetch('/api/orders');
+      const actorRole = roleOverride || currentRoleRef.current || admin?.role || 'user';
+      const res = await fetch(`/api/orders?actorRole=${encodeURIComponent(actorRole)}`);
       if (!res.ok) return;
       const data = await res.json();
       setOrdersDesign(data.ordersDesign || []);
       setOrdersVideo(data.ordersVideo || []);
+      setDeletedOrders(data.deletedOrders || []);
+      setOrderAuditLogs(data.orderAuditLogs || []);
       setNotifications(data.notifications || []);
     } catch {}
   }
 
+  function getActorPayload() {
+    if (!admin) return { role: 'user' };
+    return {
+      username: admin.username,
+      displayName: admin.displayName,
+      role: admin.role,
+    };
+  }
+
   // Fetch ngay khi load trang
   useEffect(() => {
-    fetchOrders();
+    fetchOrders('user');
 
     // Restore phiên đăng nhập sau khi F5
     try {
@@ -80,7 +97,7 @@ export default function Home() {
 
     const eventSource = new EventSource('/api/orders-stream');
     const onOrdersUpdated = () => {
-      fetchOrders();
+      fetchOrders(currentRoleRef.current);
     };
 
     eventSource.addEventListener('orders-updated', onOrdersUpdated as EventListener);
@@ -107,6 +124,14 @@ export default function Home() {
       }
     } catch {}
   }, [admin]);
+
+  useEffect(() => {
+    currentRoleRef.current = (admin?.role || 'user') as 'admin' | 'design' | 'video' | 'user';
+  }, [admin?.role]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [admin?.role]);
 
   // Phát âm thanh khi có thông báo mới dành cho role hiện tại (không chạy ở lần load đầu).
   function isNotifForMe(n: any) {
@@ -212,7 +237,7 @@ export default function Home() {
     fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'receive', type, orderId, receivedBy })
+      body: JSON.stringify({ action: 'receive', type, orderId, receivedBy, actor: getActorPayload() })
     }).catch(() => {
       fetchOrders();
     });
@@ -222,7 +247,25 @@ export default function Home() {
     await fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', type, orderId })
+      body: JSON.stringify({ action: 'delete', type, orderId, actor: getActorPayload() })
+    });
+    fetchOrders();
+  }
+
+  async function handleRestoreOrder(type: 'design' | 'video', orderId: number) {
+    await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'restore', type, orderId, actor: getActorPayload() })
+    });
+    fetchOrders();
+  }
+
+  async function handlePermanentDeleteOrder(type: 'design' | 'video', orderId: number) {
+    await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'permanent-delete', type, orderId, actor: getActorPayload() })
     });
     fetchOrders();
   }
@@ -241,7 +284,7 @@ export default function Home() {
     fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'deliver', type, orderId, finalLink })
+      body: JSON.stringify({ action: 'deliver', type, orderId, finalLink, actor: getActorPayload() })
     }).catch(() => {
       fetchOrders();
     });
@@ -259,7 +302,7 @@ export default function Home() {
     fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'request-revision', type, orderId, note, ordererToken: ordererTokens[orderId] })
+      body: JSON.stringify({ action: 'request-revision', type, orderId, note, ordererToken: ordererTokens[orderId], actor: getActorPayload() })
     }).catch(() => {
       fetchOrders();
     });
@@ -275,7 +318,7 @@ export default function Home() {
     fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'approve', type, orderId, ordererToken: ordererTokens[orderId] })
+      body: JSON.stringify({ action: 'approve', type, orderId, ordererToken: ordererTokens[orderId], actor: getActorPayload() })
     }).catch(() => {
       fetchOrders();
     });
@@ -283,6 +326,7 @@ export default function Home() {
 
   function handleLogout() {
     setAdmin(null);
+    setShowDeletedOrders(false);
     try { localStorage.removeItem(ADMIN_SESSION_KEY); } catch {}
   }
 
@@ -332,6 +376,7 @@ export default function Home() {
         onShowCreateUser={() => setShowCreateUser(true)}
         onShowStaffManagement={() => setShowStaffManagement(true)}
         onShowOpsStats={() => setShowOpsStats(true)}
+        onShowDeletedOrders={() => setShowDeletedOrders(true)}
         onShowNotification={() => setShowNotification(true)}
         notificationCount={notifications.filter((n: any) => !n.read && isNotifForMe(n)).length}
       />
@@ -389,6 +434,15 @@ export default function Home() {
           ordersDesign={ordersDesign}
           ordersVideo={ordersVideo}
           onClose={() => setShowOpsStats(false)}
+        />
+      )}
+      {admin?.role === 'admin' && showDeletedOrders && (
+        <DeletedOrdersPopup
+          deletedOrders={deletedOrders}
+          auditLogs={orderAuditLogs}
+          onClose={() => setShowDeletedOrders(false)}
+          onRestore={handleRestoreOrder}
+          onPermanentDelete={handlePermanentDeleteOrder}
         />
       )}
       {admin && showNotification && (

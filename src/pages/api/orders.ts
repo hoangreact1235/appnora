@@ -4,22 +4,110 @@ import path from 'path';
 import { ordersEmitter } from '../../lib/ordersEvents';
 
 const ORDERS_FILE = path.join(process.cwd(), 'orders-data.json');
+const DELETED_RETENTION_DAYS = 60;
+const AUDIT_RETENTION_DAYS = 180;
+
+type Actor = {
+  username?: string;
+  displayName?: string;
+  role: 'admin' | 'design' | 'video' | 'user';
+  name: string;
+};
+
+function normalizeRole(role: any): Actor['role'] {
+  if (role === 'admin' || role === 'design' || role === 'video') return role;
+  return 'user';
+}
+
+function getActor(req: NextApiRequest): Actor {
+  const raw = req.body?.actor || {};
+  const role = normalizeRole(raw?.role);
+  const username = typeof raw?.username === 'string' ? raw.username : '';
+  const displayName = typeof raw?.displayName === 'string' ? raw.displayName : '';
+  const name = displayName || username || (role === 'admin' ? 'Admin' : role === 'user' ? 'Người dùng' : role);
+  return {
+    username,
+    displayName,
+    role,
+    name,
+  };
+}
+
+function normalizeData(raw: any) {
+  return {
+    ordersDesign: Array.isArray(raw?.ordersDesign) ? raw.ordersDesign : [],
+    ordersVideo: Array.isArray(raw?.ordersVideo) ? raw.ordersVideo : [],
+    notifications: Array.isArray(raw?.notifications) ? raw.notifications : [],
+    deletedOrders: Array.isArray(raw?.deletedOrders) ? raw.deletedOrders : [],
+    orderAuditLogs: Array.isArray(raw?.orderAuditLogs) ? raw.orderAuditLogs : [],
+  };
+}
+
+function applyRetention(data: any) {
+  const now = Date.now();
+  const deletedCutoff = now - DELETED_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const auditCutoff = now - AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+  data.deletedOrders = (data.deletedOrders || []).filter((o: any) => {
+    const deletedAtMs = new Date(o?.deletedAt || 0).getTime();
+    return Number.isFinite(deletedAtMs) && deletedAtMs >= deletedCutoff;
+  });
+
+  data.orderAuditLogs = (data.orderAuditLogs || []).filter((l: any) => {
+    const createdAtMs = new Date(l?.createdAt || 0).getTime();
+    return Number.isFinite(createdAtMs) && createdAtMs >= auditCutoff;
+  });
+
+  return data;
+}
+
+function pushAudit(data: any, payload: any) {
+  data.orderAuditLogs = [
+    {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      createdAt: new Date().toISOString(),
+      ...payload,
+    },
+    ...(data.orderAuditLogs || []),
+  ].slice(0, 1000);
+}
+
+function stripToken(list: any[]) {
+  return (list || []).map(({ ordererToken: _t, ...rest }: any) => rest);
+}
+
+function isAdminActor(actor: Actor) {
+  return actor.role === 'admin';
+}
+
+function canManageType(actor: Actor, type: any) {
+  if (actor.role === 'admin') return true;
+  if (actor.role === 'design' || actor.role === 'video') return actor.role === type;
+  return false;
+}
+
+function isValidType(type: any): type is 'design' | 'video' {
+  return type === 'design' || type === 'video';
+}
 
 function readData() {
   try {
     if (!fs.existsSync(ORDERS_FILE)) {
-      const empty = { ordersDesign: [], ordersVideo: [], notifications: [] };
+      const empty = { ordersDesign: [], ordersVideo: [], notifications: [], deletedOrders: [], orderAuditLogs: [] };
       fs.writeFileSync(ORDERS_FILE, JSON.stringify(empty));
       return empty;
     }
-    return JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8'));
+    const normalized = applyRetention(normalizeData(raw));
+    return normalized;
   } catch {
-    return { ordersDesign: [], ordersVideo: [], notifications: [] };
+    return { ordersDesign: [], ordersVideo: [], notifications: [], deletedOrders: [], orderAuditLogs: [] };
   }
 }
 
 function writeData(data: any) {
-  fs.writeFileSync(ORDERS_FILE, JSON.stringify(data, null, 2));
+  const normalized = applyRetention(normalizeData(data));
+  fs.writeFileSync(ORDERS_FILE, JSON.stringify(normalized, null, 2));
 }
 
 function bumpVersion(version?: string) {
@@ -30,20 +118,27 @@ function bumpVersion(version?: string) {
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     const data = readData();
+    const actorRole = normalizeRole(req.query.actorRole);
     // Strip ordererToken before returning to clients
     const sanitized = {
       ...data,
-      ordersDesign: (data.ordersDesign || []).map(({ ordererToken: _t, ...o }: any) => o),
-      ordersVideo: (data.ordersVideo || []).map(({ ordererToken: _t, ...o }: any) => o),
+      ordersDesign: stripToken(data.ordersDesign || []),
+      ordersVideo: stripToken(data.ordersVideo || []),
+      deletedOrders: actorRole === 'admin' ? stripToken(data.deletedOrders || []) : [],
+      orderAuditLogs: actorRole === 'admin' ? (data.orderAuditLogs || []).slice(0, 200) : [],
     };
     return res.json(sanitized);
   }
 
   if (req.method === 'POST') {
     const { type, order, notification } = req.body;
+    if (type !== 'design' && type !== 'video') {
+      return res.status(400).json({ message: 'Invalid order type' });
+    }
     const data = readData();
     const preparedOrder = {
       ...order,
+      isDeleted: false,
       createdAt: order?.createdAt || new Date().toISOString()
     };
     if (type === 'design') {
@@ -54,6 +149,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     if (notification) {
       data.notifications = [notification, ...data.notifications];
     }
+    pushAudit(data, {
+      action: 'create',
+      type,
+      orderId: preparedOrder.id,
+      title: preparedOrder.title,
+      by: 'user',
+      byRole: 'user',
+    });
     writeData(data);
     ordersEmitter.emit('orders-updated');
     return res.json({ success: true });
@@ -62,6 +165,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'PATCH') {
     const { action, notificationId, type, orderId, finalLink, receivedBy } = req.body;
     const data = readData();
+    const actor = getActor(req);
 
     if (action === 'mark-read') {
       data.notifications = data.notifications.map((n: any) =>
@@ -70,6 +174,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (action === 'receive') {
+      if (!isValidType(type)) {
+        return res.status(400).json({ message: 'Invalid order type' });
+      }
+      if (!canManageType(actor, type)) {
+        return res.status(403).json({ message: 'No permission to receive this order type' });
+      }
       const targetOrdersR = type === 'design' ? data.ordersDesign : data.ordersVideo;
       const receivedOrder = targetOrdersR.find((o: any) => o.id === orderId);
       if (type === 'design') {
@@ -82,6 +192,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         );
       }
       if (receivedOrder) {
+        pushAudit(data, {
+          action: 'receive',
+          type,
+          orderId,
+          title: receivedOrder.title,
+          by: actor.name,
+          byRole: actor.role,
+        });
         data.notifications = [
           {
             id: Date.now() + 1,
@@ -99,6 +217,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (action === 'deliver') {
+      if (!isValidType(type)) {
+        return res.status(400).json({ message: 'Invalid order type' });
+      }
+      if (!canManageType(actor, type)) {
+        return res.status(403).json({ message: 'No permission to deliver this order type' });
+      }
       const targetOrdersD = type === 'design' ? data.ordersDesign : data.ordersVideo;
       const deliveredOrder = targetOrdersD.find((o: any) => o.id === orderId);
       if (type === 'design') {
@@ -111,6 +235,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         );
       }
       if (deliveredOrder) {
+        pushAudit(data, {
+          action: 'deliver',
+          type,
+          orderId,
+          title: deliveredOrder.title,
+          by: actor.name,
+          byRole: actor.role,
+        });
         data.notifications = [
           {
             id: Date.now() + 1,
@@ -128,6 +260,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (action === 'request-revision') {
+      if (!isValidType(type)) {
+        return res.status(400).json({ message: 'Invalid order type' });
+      }
+      if (actor.role !== 'user') {
+        return res.status(403).json({ message: 'Only orderer can request revision' });
+      }
       const note = String(req.body.note || '').trim();
       const clientToken = String(req.body.ordererToken || '');
       const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
@@ -149,6 +287,16 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         data.ordersVideo = data.ordersVideo.map((o: any) => (o.id === orderId ? updatedOrder : o));
       }
 
+      pushAudit(data, {
+        action: 'request-revision',
+        type,
+        orderId,
+        title: target.title,
+        by: actor.name,
+        byRole: actor.role,
+        note,
+      });
+
       data.notifications = [
         {
           id: Date.now() + 2,
@@ -165,6 +313,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (action === 'approve') {
+      if (!isValidType(type)) {
+        return res.status(400).json({ message: 'Invalid order type' });
+      }
+      if (actor.role !== 'user') {
+        return res.status(403).json({ message: 'Only orderer can approve completion' });
+      }
       const clientToken = String(req.body.ordererToken || '');
       const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
       const target = targetOrders.find((o: any) => o.id === orderId);
@@ -185,6 +339,15 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         data.ordersVideo = data.ordersVideo.map((o: any) => (o.id === orderId ? approvedOrder : o));
       }
 
+      pushAudit(data, {
+        action: 'approve',
+        type,
+        orderId,
+        title: target.title,
+        by: actor.name,
+        byRole: actor.role,
+      });
+
       data.notifications = [
         {
           id: Date.now() + 3,
@@ -201,12 +364,136 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (action === 'delete') {
+      if (!isValidType(type)) {
+        return res.status(400).json({ message: 'Invalid order type' });
+      }
+      if (!canManageType(actor, type)) {
+        return res.status(403).json({ message: 'No permission to delete this order type' });
+      }
+      const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
+      const target = targetOrders.find((o: any) => o.id === orderId);
+      if (!target) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+
+      const deletedOrder = {
+        ...target,
+        type,
+        isDeleted: true,
+        deletedAt: new Date().toISOString(),
+        deletedBy: actor.name,
+        deletedByUsername: actor.username || '',
+        deletedByRole: actor.role,
+        deletedReason: String(req.body?.deleteReason || '').trim(),
+      };
+
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.filter((o: any) => o.id !== orderId);
       } else {
         data.ordersVideo = data.ordersVideo.filter((o: any) => o.id !== orderId);
       }
+
+      data.deletedOrders = [deletedOrder, ...(data.deletedOrders || [])];
       data.notifications = data.notifications.filter((n: any) => n.orderId !== orderId);
+
+      pushAudit(data, {
+        action: 'soft-delete',
+        type,
+        orderId,
+        title: target.title,
+        by: actor.name,
+        byRole: actor.role,
+      });
+
+      if (!isAdminActor(actor)) {
+        data.notifications = [
+          {
+            id: Date.now() + 10,
+            type,
+            orderId,
+            name: `${target.title} - Đã bị xóa bởi ${actor.name}`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            read: false,
+            forRole: 'admin',
+            forType: type,
+          },
+          ...data.notifications,
+        ];
+      }
+    }
+
+    if (action === 'restore') {
+      if (!isValidType(type)) {
+        return res.status(400).json({ message: 'Invalid order type' });
+      }
+      if (!isAdminActor(actor)) {
+        return res.status(403).json({ message: 'Only admin can restore orders' });
+      }
+      const deletedIndex = (data.deletedOrders || []).findIndex((o: any) => o.id === orderId && (o.type || type) === type);
+      if (deletedIndex < 0) {
+        return res.status(404).json({ message: 'Deleted order not found' });
+      }
+
+      const deletedOrder = data.deletedOrders[deletedIndex];
+      data.deletedOrders.splice(deletedIndex, 1);
+
+      const {
+        isDeleted,
+        deletedAt,
+        deletedBy,
+        deletedByUsername,
+        deletedByRole,
+        deletedReason,
+        ...restoredBase
+      } = deletedOrder;
+
+      const restoredOrder = {
+        ...restoredBase,
+        restoredAt: new Date().toISOString(),
+        restoredBy: actor.name,
+        restoredByUsername: actor.username || '',
+      };
+
+      if (type === 'design') {
+        data.ordersDesign = [restoredOrder, ...data.ordersDesign];
+      } else {
+        data.ordersVideo = [restoredOrder, ...data.ordersVideo];
+      }
+
+      pushAudit(data, {
+        action: 'restore',
+        type,
+        orderId,
+        title: restoredOrder.title,
+        by: actor.name,
+        byRole: actor.role,
+      });
+    }
+
+    if (action === 'permanent-delete') {
+      if (!isValidType(type)) {
+        return res.status(400).json({ message: 'Invalid order type' });
+      }
+      if (!isAdminActor(actor)) {
+        return res.status(403).json({ message: 'Only admin can permanently delete orders' });
+      }
+      const deletedIndex = (data.deletedOrders || []).findIndex((o: any) => o.id === orderId && (o.type || type) === type);
+      if (deletedIndex < 0) {
+        return res.status(404).json({ message: 'Deleted order not found' });
+      }
+
+      const deletedOrder = data.deletedOrders[deletedIndex];
+      data.deletedOrders.splice(deletedIndex, 1);
+      data.notifications = data.notifications.filter((n: any) => n.orderId !== orderId);
+
+      pushAudit(data, {
+        action: 'permanent-delete',
+        type,
+        orderId,
+        title: deletedOrder?.title || `Order #${orderId}`,
+        by: actor.name,
+        byRole: actor.role,
+      });
     }
 
     if (action === 'clear-notifications') {
