@@ -48,6 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Không tìm thấy dữ liệu người dùng.' });
     }
   } catch (err) {
+    console.error('login storage error', err);
     return res.status(500).json({ error: 'Lỗi đọc dữ liệu người dùng.' });
   }
   const user = users.find((u: any) => u.username === username);

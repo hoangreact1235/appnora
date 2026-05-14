@@ -1,7 +1,11 @@
 import { Redis } from '@upstash/redis';
 
-const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL ?? '';
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN ?? '';
+function normalizeEnv(value?: string) {
+  return String(value ?? '').trim().replace(/^['\"]|['\"]$/g, '');
+}
+
+const REDIS_URL = normalizeEnv(process.env.UPSTASH_REDIS_REST_URL);
+const REDIS_TOKEN = normalizeEnv(process.env.UPSTASH_REDIS_REST_TOKEN);
 
 function getRedisClient() {
   if (!REDIS_URL || !REDIS_TOKEN) {
