@@ -90,13 +90,12 @@ function isValidType(type: any): type is 'design' | 'video' {
 }
 
 async function readData() {
-  try {
-    const raw = await redisGet(ORDERS_KEY);
-    if (!raw) return { ordersDesign: [], ordersVideo: [], notifications: [], deletedOrders: [], orderAuditLogs: [] };
-    return applyRetention(normalizeData(JSON.parse(raw)));
-  } catch {
+  const raw = await redisGet(ORDERS_KEY);
+  if (!raw) {
     return { ordersDesign: [], ordersVideo: [], notifications: [], deletedOrders: [], orderAuditLogs: [] };
   }
+
+  return applyRetention(normalizeData(JSON.parse(raw)));
 }
 
 async function writeData(data: any) {
@@ -110,56 +109,57 @@ function bumpVersion(version?: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'GET') {
-    const data = await readData();
-    const actorRole = normalizeRole(req.query.actorRole);
-    // Strip ordererToken before returning to clients
-    const sanitized = {
-      ...data,
-      ordersDesign: stripToken(data.ordersDesign || []),
-      ordersVideo: stripToken(data.ordersVideo || []),
-      deletedOrders: actorRole === 'admin' ? stripToken(data.deletedOrders || []) : [],
-      orderAuditLogs: actorRole === 'admin' ? (data.orderAuditLogs || []).slice(0, 200) : [],
-    };
-    return res.json(sanitized);
-  }
+  try {
+    if (req.method === 'GET') {
+      const data = await readData();
+      const actorRole = normalizeRole(req.query.actorRole);
+      // Strip ordererToken before returning to clients
+      const sanitized = {
+        ...data,
+        ordersDesign: stripToken(data.ordersDesign || []),
+        ordersVideo: stripToken(data.ordersVideo || []),
+        deletedOrders: actorRole === 'admin' ? stripToken(data.deletedOrders || []) : [],
+        orderAuditLogs: actorRole === 'admin' ? (data.orderAuditLogs || []).slice(0, 200) : [],
+      };
+      return res.json(sanitized);
+    }
 
-  if (req.method === 'POST') {
-    const { type, order, notification } = req.body;
-    if (type !== 'design' && type !== 'video') {
-      return res.status(400).json({ message: 'Invalid order type' });
+    if (req.method === 'POST') {
+      const { type, order, notification } = req.body;
+      if (type !== 'design' && type !== 'video') {
+        return res.status(400).json({ message: 'Invalid order type' });
+      }
+      const data = await readData();
+      const preparedOrder = {
+        ...order,
+        isDeleted: false,
+        createdAt: order?.createdAt || new Date().toISOString()
+      };
+      if (type === 'design') {
+        data.ordersDesign = [preparedOrder, ...data.ordersDesign];
+      } else {
+        data.ordersVideo = [preparedOrder, ...data.ordersVideo];
+      }
+      if (notification) {
+        data.notifications = [notification, ...data.notifications];
+      }
+      pushAudit(data, {
+        action: 'create',
+        type,
+        orderId: preparedOrder.id,
+        title: preparedOrder.title,
+        by: 'user',
+        byRole: 'user',
+      });
+      await writeData(data);
+      ordersEmitter.emit('orders-updated');
+      return res.json({ success: true });
     }
-    const data = await readData();
-    const preparedOrder = {
-      ...order,
-      isDeleted: false,
-      createdAt: order?.createdAt || new Date().toISOString()
-    };
-    if (type === 'design') {
-      data.ordersDesign = [preparedOrder, ...data.ordersDesign];
-    } else {
-      data.ordersVideo = [preparedOrder, ...data.ordersVideo];
-    }
-    if (notification) {
-      data.notifications = [notification, ...data.notifications];
-    }
-    pushAudit(data, {
-      action: 'create',
-      type,
-      orderId: preparedOrder.id,
-      title: preparedOrder.title,
-      by: 'user',
-      byRole: 'user',
-    });
-    await writeData(data);
-    ordersEmitter.emit('orders-updated');
-    return res.json({ success: true });
-  }
 
-  if (req.method === 'PATCH') {
-    const { action, notificationId, type, orderId, finalLink, receivedBy } = req.body;
-    const data = await readData();
-    const actor = getActor(req);
+    if (req.method === 'PATCH') {
+      const { action, notificationId, type, orderId, finalLink, receivedBy } = req.body;
+      const data = await readData();
+      const actor = getActor(req);
 
     if (action === 'mark-read') {
       data.notifications = data.notifications.map((n: any) =>
@@ -495,10 +495,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data.notifications = data.notifications.filter((n: any) => n.forType && n.forRole);
     }
 
-    await writeData(data);
-    ordersEmitter.emit('orders-updated');
-    return res.json({ success: true });
-  }
+      await writeData(data);
+      ordersEmitter.emit('orders-updated');
+      return res.json({ success: true });
+    }
 
-  res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
+  } catch (error) {
+    console.error('orders api storage error', error);
+    return res.status(500).json({ message: 'Không thể đọc hoặc lưu order lúc này.' });
+  }
 }
