@@ -1,9 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import fs from 'fs';
-import path from 'path';
 import { ordersEmitter } from '../../lib/ordersEvents';
+import { redisGet, redisSet } from '../../lib/redis';
 
-const ORDERS_FILE = path.join(process.cwd(), 'orders-data.json');
+const ORDERS_KEY = 'nora_orders_data';
 const DELETED_RETENTION_DAYS = 60;
 const AUDIT_RETENTION_DAYS = 180;
 
@@ -90,24 +89,19 @@ function isValidType(type: any): type is 'design' | 'video' {
   return type === 'design' || type === 'video';
 }
 
-function readData() {
+async function readData() {
   try {
-    if (!fs.existsSync(ORDERS_FILE)) {
-      const empty = { ordersDesign: [], ordersVideo: [], notifications: [], deletedOrders: [], orderAuditLogs: [] };
-      fs.writeFileSync(ORDERS_FILE, JSON.stringify(empty));
-      return empty;
-    }
-    const raw = JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8'));
-    const normalized = applyRetention(normalizeData(raw));
-    return normalized;
+    const raw = await redisGet(ORDERS_KEY);
+    if (!raw) return { ordersDesign: [], ordersVideo: [], notifications: [], deletedOrders: [], orderAuditLogs: [] };
+    return applyRetention(normalizeData(JSON.parse(raw)));
   } catch {
     return { ordersDesign: [], ordersVideo: [], notifications: [], deletedOrders: [], orderAuditLogs: [] };
   }
 }
 
-function writeData(data: any) {
+async function writeData(data: any) {
   const normalized = applyRetention(normalizeData(data));
-  fs.writeFileSync(ORDERS_FILE, JSON.stringify(normalized, null, 2));
+  await redisSet(ORDERS_KEY, JSON.stringify(normalized));
 }
 
 function bumpVersion(version?: string) {
@@ -115,9 +109,9 @@ function bumpVersion(version?: string) {
   return `V${current + 1}`;
 }
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
-    const data = readData();
+    const data = await readData();
     const actorRole = normalizeRole(req.query.actorRole);
     // Strip ordererToken before returning to clients
     const sanitized = {
@@ -135,7 +129,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     if (type !== 'design' && type !== 'video') {
       return res.status(400).json({ message: 'Invalid order type' });
     }
-    const data = readData();
+    const data = await readData();
     const preparedOrder = {
       ...order,
       isDeleted: false,
@@ -157,14 +151,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       by: 'user',
       byRole: 'user',
     });
-    writeData(data);
+    await writeData(data);
     ordersEmitter.emit('orders-updated');
     return res.json({ success: true });
   }
 
   if (req.method === 'PATCH') {
     const { action, notificationId, type, orderId, finalLink, receivedBy } = req.body;
-    const data = readData();
+    const data = await readData();
     const actor = getActor(req);
 
     if (action === 'mark-read') {
@@ -501,7 +495,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       data.notifications = data.notifications.filter((n: any) => n.forType && n.forRole);
     }
 
-    writeData(data);
+    await writeData(data);
     ordersEmitter.emit('orders-updated');
     return res.json({ success: true });
   }

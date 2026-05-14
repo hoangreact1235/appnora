@@ -1,8 +1,8 @@
-
 import type { NextApiRequest, NextApiResponse } from 'next';
+import bcrypt from 'bcryptjs';
+import { redisGet } from '../../../lib/redis';
 import fs from 'fs';
 import path from 'path';
-import bcrypt from 'bcryptjs';
 
 export const config = {
   api: {
@@ -10,7 +10,7 @@ export const config = {
   },
 };
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -29,12 +29,26 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   } catch (err) {
     return res.status(400).json({ error: 'Invalid JSON body' });
   }
-  const usersPath = path.join(process.cwd(), 'users-data.json');
   let users;
   try {
-    users = JSON.parse(fs.readFileSync(usersPath, 'utf8'));
+    let raw = await redisGet('nora_users_data');
+    if (!raw) {
+      // First run: seed from local file into Redis
+      try {
+        const localPath = path.join(process.cwd(), 'users-data.json');
+        raw = fs.readFileSync(localPath, 'utf8');
+        const { redisSet } = await import('../../../lib/redis');
+        await redisSet('nora_users_data', raw);
+      } catch {
+        raw = null;
+      }
+    }
+    users = raw ? JSON.parse(raw) : [];
+    if (!users.length) {
+      return res.status(500).json({ error: 'Không tìm thấy dữ liệu người dùng.' });
+    }
   } catch (err) {
-    return res.status(500).json({ error: 'Lỗi đọc file users.json hoặc file không hợp lệ.' });
+    return res.status(500).json({ error: 'Lỗi đọc dữ liệu người dùng.' });
   }
   const user = users.find((u: any) => u.username === username);
   if (!user) {
