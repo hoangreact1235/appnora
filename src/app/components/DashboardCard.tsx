@@ -45,12 +45,12 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
       data-order-title={order.title.toLowerCase()}
       className="border border-pink-200 rounded-xl bg-white p-4 flex flex-col min-w-[180px] max-w-[220px] w-full shadow-sm"
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="font-bold text-[#6B184E] text-base">{order.title}</div>
+      <div className="flex items-start justify-between mb-2 gap-2">
+        <div className="font-bold text-[#6B184E] text-base break-words">{order.title}</div>
         <span className={`px-3 py-1 rounded-lg text-xs font-semibold ml-2 whitespace-nowrap ${statusColor[order.status] || "bg-gray-100 text-gray-500"}`}>{order.status}</span>
       </div>
       <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Deadline: <span className="font-normal">{order.deadline}</span></div>
-      <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Kích thước: <span className="font-normal whitespace-nowrap">{order.size}</span></div>
+      <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Kích thước: <span className="font-normal break-words">{order.size}</span></div>
       <div className="text-[15px] mb-1 font-semibold text-[#6B184E]">Phiên bản: <span className="font-normal">{order.version}</span></div>
       {!!order.receivedBy && (
         <div className="text-[13px] mb-1 font-semibold text-[#6B184E]">Người nhận: <span className="font-normal text-emerald-600">{order.receivedBy}</span></div>
