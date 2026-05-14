@@ -20,8 +20,13 @@ function getRedisClient() {
 
 export async function redisGet(key: string): Promise<string | null> {
   const redis = getRedisClient();
-  const result = await redis.get<string | null>(key);
-  return typeof result === 'string' ? result : null;
+  const result = await redis.get<unknown>(key);
+
+  if (result == null) {
+    return null;
+  }
+
+  return typeof result === 'string' ? result : JSON.stringify(result);
 }
 
 export async function redisSet(key: string, value: string): Promise<void> {
