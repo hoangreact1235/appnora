@@ -81,10 +81,10 @@ export default function DeletedOrdersPopup({
 
         <div className="mb-6">
           {sortedDeleted.length === 0 ? (
-            <div className="rounded-xl border border-pink-100 bg-[#FFF8FB] px-4 py-6 text-gray-400">Không có order nào trong thùng rác.</div>
+            <div className="rounded-xl border border-pink-100 bg-[#FFF8FB] px-4 py-6 text-[#6B184E]">Không có order nào trong thùng rác.</div>
           ) : (
             <div className="overflow-x-auto border border-pink-100 rounded-xl">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm text-[#4F2A43]">
                 <thead className="bg-[#FFF3F9] text-[#6B184E]">
                   <tr>
                     <th className="text-left px-3 py-2">Order</th>
@@ -95,7 +95,7 @@ export default function DeletedOrdersPopup({
                     <th className="text-right px-3 py-2">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white">
                   {sortedDeleted.map((o) => {
                     const restoreKey = `restore-${o.type}-${o.id}`;
                     const purgeKey = `purge-${o.type}-${o.id}`;
@@ -104,10 +104,10 @@ export default function DeletedOrdersPopup({
                     return (
                       <tr key={`${o.type}-${o.id}`} className="border-t border-pink-50">
                         <td className="px-3 py-2 font-semibold text-[#D81B60]">{o.title}</td>
-                        <td className="px-3 py-2">{o.type === "design" ? "Design" : "Video"}</td>
-                        <td className="px-3 py-2">{o.deletedBy || "-"}{o.deletedByRole ? ` (${o.deletedByRole})` : ""}</td>
-                        <td className="px-3 py-2">{formatTime(o.deletedAt)}</td>
-                        <td className="px-3 py-2 text-gray-500">{o.deletedReason || "-"}</td>
+                        <td className="px-3 py-2 font-medium">{o.type === "design" ? "Design" : "Video"}</td>
+                        <td className="px-3 py-2 font-medium">{o.deletedBy || "-"}{o.deletedByRole ? ` (${o.deletedByRole})` : ""}</td>
+                        <td className="px-3 py-2 font-medium">{formatTime(o.deletedAt)}</td>
+                        <td className="px-3 py-2 text-[#6E4A62]">{o.deletedReason || "-"}</td>
                         <td className="px-3 py-2">
                           <div className="flex justify-end gap-2">
                             <button
@@ -133,16 +133,16 @@ export default function DeletedOrdersPopup({
               </table>
             </div>
           )}
-          <div className="text-xs text-gray-500 mt-2">Tự động dọn order đã xóa quá 60 ngày.</div>
+          <div className="text-xs text-[#6E4A62] mt-2">Tự động dọn order đã xóa quá 60 ngày.</div>
         </div>
 
         <div>
           <h3 className="text-lg font-bold text-[#6B184E] mb-2">Audit log gần đây</h3>
           {auditLogs.length === 0 ? (
-            <div className="rounded-xl border border-pink-100 bg-[#FFF8FB] px-4 py-4 text-gray-400">Chưa có log.</div>
+            <div className="rounded-xl border border-pink-100 bg-[#FFF8FB] px-4 py-4 text-[#6B184E]">Chưa có log.</div>
           ) : (
             <div className="overflow-x-auto border border-pink-100 rounded-xl">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm text-[#4F2A43]">
                 <thead className="bg-[#FFF3F9] text-[#6B184E]">
                   <tr>
                     <th className="text-left px-3 py-2">Thời gian</th>
@@ -152,14 +152,14 @@ export default function DeletedOrdersPopup({
                     <th className="text-left px-3 py-2">Thực hiện bởi</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white">
                   {auditLogs.slice(0, 100).map((log) => (
                     <tr key={log.id} className="border-t border-pink-50">
-                      <td className="px-3 py-2">{formatTime(log.createdAt)}</td>
-                      <td className="px-3 py-2">{log.action}</td>
-                      <td className="px-3 py-2">{log.title || `#${log.orderId || "-"}`}</td>
-                      <td className="px-3 py-2">{log.type || "-"}</td>
-                      <td className="px-3 py-2">{log.by || "-"}{log.byRole ? ` (${log.byRole})` : ""}</td>
+                      <td className="px-3 py-2 font-medium">{formatTime(log.createdAt)}</td>
+                      <td className="px-3 py-2 font-medium text-[#6B184E]">{log.action}</td>
+                      <td className="px-3 py-2 font-medium">{log.title || `#${log.orderId || "-"}`}</td>
+                      <td className="px-3 py-2 uppercase tracking-wide text-[#6E4A62]">{log.type || "-"}</td>
+                      <td className="px-3 py-2 font-medium">{log.by || "-"}{log.byRole ? ` (${log.byRole})` : ""}</td>
                     </tr>
                   ))}
                 </tbody>
