@@ -185,7 +185,15 @@ export default function Home() {
   // Phát âm thanh khi có thông báo mới dành cho role hiện tại (không chạy ở lần load đầu).
   function isNotifForMe(n: any) {
     const role = admin?.role || 'user';
-    if (role === 'user') return !n.forRole || n.forRole === 'user';
+    if (role === 'user') {
+      if (!n.forRole || n.forRole !== 'user') return false;
+      const localToken = n?.orderId ? ordererTokens[n.orderId] : undefined;
+      if (typeof n?.ordererToken === 'string' && n.ordererToken) {
+        return !!localToken && localToken === n.ordererToken;
+      }
+      // Backward compatibility for old notifications chưa có ordererToken
+      return !!localToken;
+    }
     if (role === 'admin') return n.forRole === 'admin';
     // design/video staff: chỉ nhận thông báo có forType khớp chính xác
     return n.forRole === 'admin' && n.forType === role;
@@ -221,7 +229,7 @@ export default function Home() {
     }
 
     prevUnreadIdsRef.current = unreadIds;
-  }, [notifications, admin]);
+  }, [notifications, admin, ordererTokens]);
 
   async function resolveAttachmentUrl(type: 'design' | 'video', orderId: number, attachmentIndex: number) {
     try {
