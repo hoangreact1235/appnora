@@ -44,6 +44,22 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
     return typeof value === "string" && /^(https?:\/\/)/i.test(value);
   }
 
+  function openDataUrlInBrowser(dataUrl: string) {
+    try {
+      const [meta, base64 = ""] = dataUrl.split(",");
+      const mime = (meta.match(/data:(.*?);base64/) || [])[1] || "application/octet-stream";
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch {
+      window.open(dataUrl, "_self");
+    }
+  }
+
   useEffect(() => {
     setFinalLink(order.finalLink || "");
   }, [order.finalLink]);
@@ -88,7 +104,13 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
               <div key={idx} className="text-[#D81B60] break-words">
                 {att.type === 'file' && att.url ? (
                   isDataUrl(att.url) ? (
-                    <a href={att.url} download={att.name || `File-${idx + 1}`} className="underline text-xs">{att.name || `File ${idx + 1}`}</a>
+                    <button
+                      type="button"
+                      className="underline text-xs text-left"
+                      onClick={() => openDataUrlInBrowser(att.url)}
+                    >
+                      {att.name || `File ${idx + 1}`}
+                    </button>
                   ) : (
                     <a href={att.url} target="_blank" rel="noreferrer" className="underline text-xs">{att.name || `File ${idx + 1}`}</a>
                   )
