@@ -16,6 +16,7 @@ interface Order {
   revisionNote?: string;
   receivedBy?: string;
   createdAt?: string;
+  attachments?: Array<{ type: string; name: string; url?: string; size?: number }>;
 }
 
 interface DashboardProps {

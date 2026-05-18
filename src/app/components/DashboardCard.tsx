@@ -58,7 +58,7 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
       )}
       <div className="text-[15px] mb-2 font-semibold text-[#6B184E]">Nội dung yêu cầu:<br/>
         <span
-          className="block text-[#6B184E] whitespace-pre-line font-normal break-words"
+          className="block text-[#6B184E] whitespace-pre-line font-normal break-all"
           style={isContentExpanded ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}
         >{order.content}</span>
         <button

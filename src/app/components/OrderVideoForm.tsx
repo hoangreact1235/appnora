@@ -22,7 +22,7 @@ interface OrderVideoFormData {
   type: string;
   size: string;
   deadline: string;
-  document?: FileList;
+  document?: string;
   file?: FileList;
   content: string;
 }
@@ -41,19 +41,17 @@ export default function OrderVideoForm({ onCreate }: { onCreate?: (order: any) =
     await new Promise((r) => setTimeout(r, 1200));
     const orderId = Date.now();
     if (onCreate) {
-      const attachments = [];
-      const docValue = typeof data.document === 'string' ? data.document : '';
-      if (docValue?.trim()) {
-        attachments.push({ type: 'text', name: 'Tài liệu', url: docValue });
+      const attachments: Array<{ type: string; name: string; url?: string; size?: number }> = [];
+      const docValue = String((data as any).document || "").trim();
+      if (docValue) {
+        attachments.push({ type: "text", name: "Tài liệu", url: docValue });
       }
-      if (data.file && data.file.length > 0) {
-        const fileList = Array.from(data.file);
-        fileList.forEach((f: any) => {
-          attachments.push({ type: 'file', name: f.name, size: f.size });
-        });
-      }
+      const rawFiles = (data as any).file;
+      const fileList = rawFiles instanceof FileList ? Array.from(rawFiles) : [];
+      fileList.forEach((f: any) => {
+        attachments.push({ type: "file", name: f.name, size: f.size });
+      });
       onCreate({
-        ...data,
         id: orderId,
         title: `${data.department} - ${data.type}`,
         status: "Chờ xử lý",
@@ -61,6 +59,8 @@ export default function OrderVideoForm({ onCreate }: { onCreate?: (order: any) =
         size: data.size,
         version: "V0",
         content: data.content,
+        department: data.department,
+        type: data.type,
         attachments: attachments.length > 0 ? attachments : undefined
       });
     }
