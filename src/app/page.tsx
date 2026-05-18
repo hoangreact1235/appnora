@@ -206,11 +206,14 @@ export default function Home() {
       forType: type
     };
     try {
-      await fetch('/api/orders', {
+      const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, order: newOrder, notification })
       });
+      if (!res.ok) {
+        throw new Error(`Create order failed: ${res.status}`);
+      }
       // Lưu token vào localStorage để thiết bị này có quyền tác động
       const updatedTokens = { ...ordererTokens, [newOrder.id]: ordererToken };
       setOrdererTokens(updatedTokens);
@@ -222,7 +225,9 @@ export default function Home() {
         setOrdersVideo(prev => [newOrder, ...prev]);
       }
       setNotifications(prev => [notification, ...prev]);
-    } catch {}
+    } catch {
+      fetchOrders();
+    }
   }
 
   async function handleReceiveOrder(type: 'design' | 'video', orderId: number) {

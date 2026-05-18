@@ -36,6 +36,14 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
   const [revisionNote, setRevisionNote] = useState("");
   const [isContentExpanded, setIsContentExpanded] = useState(false);
 
+  function isDataUrl(value?: string) {
+    return typeof value === "string" && value.startsWith("data:");
+  }
+
+  function isExternalUrl(value?: string) {
+    return typeof value === "string" && /^(https?:\/\/)/i.test(value);
+  }
+
   useEffect(() => {
     setFinalLink(order.finalLink || "");
   }, [order.finalLink]);
@@ -79,7 +87,13 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
             {order.attachments.map((att: any, idx: number) => (
               <div key={idx} className="text-[#D81B60] break-words">
                 {att.type === 'file' && att.url ? (
-                  <a href={att.url} target="_blank" rel="noreferrer" className="underline text-xs">{att.name || `File ${idx + 1}`}</a>
+                  isDataUrl(att.url) ? (
+                    <a href={att.url} download={att.name || `File-${idx + 1}`} className="underline text-xs">{att.name || `File ${idx + 1}`}</a>
+                  ) : (
+                    <a href={att.url} target="_blank" rel="noreferrer" className="underline text-xs">{att.name || `File ${idx + 1}`}</a>
+                  )
+                ) : isExternalUrl(att.url) ? (
+                  <a href={att.url} target="_blank" rel="noreferrer" className="underline text-xs">{att.name || att.url}</a>
                 ) : (
                   <span className="text-xs">{att.name || att.url}</span>
                 )}

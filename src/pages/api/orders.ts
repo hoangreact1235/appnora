@@ -2,6 +2,14 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { ordersEmitter } from '../../lib/ordersEvents';
 import { redisGet, redisSet } from '../../lib/redis';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '20mb',
+    },
+  },
+};
+
 const ORDERS_KEY = 'nora_orders_data';
 const DELETED_RETENTION_DAYS = 60;
 const AUDIT_RETENTION_DAYS = 180;
