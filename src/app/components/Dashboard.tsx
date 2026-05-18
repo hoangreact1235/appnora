@@ -16,7 +16,7 @@ interface Order {
   revisionNote?: string;
   receivedBy?: string;
   createdAt?: string;
-  attachments?: Array<{ type: string; name: string; url?: string; size?: number }>;
+  attachments?: Array<{ type: string; name: string; url?: string; size?: number; attachmentIndex?: number; hasInlineData?: boolean }>;
 }
 
 interface DashboardProps {
@@ -29,6 +29,7 @@ interface DashboardProps {
   onSubmitFinal?: (id: number, finalLink: string) => void;
   onRequestRevision?: (id: number, note: string) => void;
   onApproveOrder?: (id: number) => void;
+  onResolveAttachmentUrl?: (orderId: number, attachmentIndex: number) => Promise<string | null>;
 }
 
 function formatGroupLabel(d: Date) {
@@ -41,7 +42,7 @@ function formatGroupLabel(d: Date) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
-export default function Dashboard({ type = "video", orders = [], isAdmin = false, ordererTokens = {}, onReceiveOrder, onDeleteOrder, onSubmitFinal, onRequestRevision, onApproveOrder }: DashboardProps) {
+export default function Dashboard({ type = "video", orders = [], isAdmin = false, ordererTokens = {}, onReceiveOrder, onDeleteOrder, onSubmitFinal, onRequestRevision, onApproveOrder, onResolveAttachmentUrl }: DashboardProps) {
   const [filterReceiver, setFilterReceiver] = useState("all");
   const [datePreset, setDatePreset] = useState<DatePresetKey>("today");
   const [customDate, setCustomDate] = useState<string>("");
@@ -129,6 +130,7 @@ export default function Dashboard({ type = "video", orders = [], isAdmin = false
                   <DashboardCard
                     key={order.id}
                     order={order}
+                    onResolveAttachmentUrl={onResolveAttachmentUrl}
                     isAdmin={isAdmin}
                     isOrderer={!!ordererTokens[order.id]}
                     onReceive={() => onReceiveOrder?.(order.id)}

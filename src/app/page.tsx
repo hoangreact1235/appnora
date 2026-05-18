@@ -45,16 +45,20 @@ export default function Home() {
   // ordererTokens: { [orderId]: token } — chỉ thiết bị đặt hàng mới có
   const [ordererTokens, setOrdererTokens] = useState<Record<number, string>>({});
   const didInitNotifications = useRef(false);
-  const prevUnreadCountRef = useRef(0);
+  const prevUnreadIdsRef = useRef<Set<number>>(new Set());
   const currentRoleRef = useRef<'admin' | 'design' | 'video' | 'user'>('user');
+  const fetchRequestSeqRef = useRef(0);
+  const sseFetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch orders từ server (cả 2 trình duyệt đều đọc từ cùng 1 nơi)
   async function fetchOrders(roleOverride?: 'admin' | 'design' | 'video' | 'user') {
     try {
+      const seq = ++fetchRequestSeqRef.current;
       const actorRole = roleOverride || currentRoleRef.current || admin?.role || 'user';
       const res = await fetch(`/api/orders?actorRole=${encodeURIComponent(actorRole)}`);
       if (!res.ok) return;
       const data = await res.json();
+      if (seq !== fetchRequestSeqRef.current) return;
       setOrdersDesign(data.ordersDesign || []);
       setOrdersVideo(data.ordersVideo || []);
       setDeletedOrders(data.deletedOrders || []);
@@ -98,7 +102,10 @@ export default function Home() {
 
     const eventSource = new EventSource('/api/orders-stream');
     const onOrdersUpdated = () => {
-      fetchOrders(currentRoleRef.current);
+      if (sseFetchTimerRef.current) clearTimeout(sseFetchTimerRef.current);
+      sseFetchTimerRef.current = setTimeout(() => {
+        fetchOrders(currentRoleRef.current);
+      }, 200);
     };
 
     eventSource.addEventListener('orders-updated', onOrdersUpdated as EventListener);
@@ -107,6 +114,7 @@ export default function Home() {
     };
 
     return () => {
+      if (sseFetchTimerRef.current) clearTimeout(sseFetchTimerRef.current);
       eventSource.removeEventListener('orders-updated', onOrdersUpdated as EventListener);
       eventSource.close();
     };
@@ -128,6 +136,8 @@ export default function Home() {
 
   useEffect(() => {
     currentRoleRef.current = (admin?.role || 'user') as 'admin' | 'design' | 'video' | 'user';
+    didInitNotifications.current = false;
+    prevUnreadIdsRef.current = new Set();
   }, [admin?.role]);
 
   useEffect(() => {
@@ -144,23 +154,53 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const unreadCount = notifications.filter((n: any) => !n.read && isNotifForMe(n)).length;
+    const unreadIds = new Set<number>(
+      notifications
+        .filter((n: any) => !n.read && isNotifForMe(n))
+        .map((n: any) => Number(n.id))
+        .filter((id: number) => Number.isFinite(id))
+    );
 
     if (!didInitNotifications.current) {
       didInitNotifications.current = true;
-      prevUnreadCountRef.current = unreadCount;
+      prevUnreadIdsRef.current = unreadIds;
       return;
     }
 
-    if (unreadCount > prevUnreadCountRef.current) {
+    let hasNewUnread = false;
+    for (const id of unreadIds) {
+      if (!prevUnreadIdsRef.current.has(id)) {
+        hasNewUnread = true;
+        break;
+      }
+    }
+
+    if (hasNewUnread) {
       try {
         const audio = new Audio('/thongbao.mp3');
         audio.play();
       } catch {}
     }
 
-    prevUnreadCountRef.current = unreadCount;
+    prevUnreadIdsRef.current = unreadIds;
   }, [notifications, admin]);
+
+  async function resolveAttachmentUrl(type: 'design' | 'video', orderId: number, attachmentIndex: number) {
+    try {
+      const params = new URLSearchParams({
+        action: 'attachment',
+        type,
+        orderId: String(orderId),
+        index: String(attachmentIndex),
+      });
+      const res = await fetch(`/api/orders?${params.toString()}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return typeof data?.url === 'string' ? data.url : null;
+    } catch {
+      return null;
+    }
+  }
 
   // Sau khi bấm thông báo, chỉ cuộn khi tab + danh sách đã render xong.
   useEffect(() => {
@@ -405,6 +445,7 @@ export default function Home() {
                 orders={currentType === "design" ? ordersDesign : ordersVideo}
                 isAdmin={canAct}
                 ordererTokens={ordererTokens}
+                onResolveAttachmentUrl={(orderId, attachmentIndex) => resolveAttachmentUrl(currentType, orderId, attachmentIndex)}
                 onReceiveOrder={(id) => handleReceiveOrder(currentType, id)}
                 onDeleteOrder={(id) => handleDeleteOrder(currentType, id)}
                 onSubmitFinal={(id, finalLink) => handleSubmitFinal(currentType, id, finalLink)}

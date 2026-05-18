@@ -83,6 +83,30 @@ function stripToken(list: any[]) {
   return (list || []).map(({ ordererToken: _t, ...rest }: any) => rest);
 }
 
+function sanitizeOrderForList(order: any) {
+  const attachments = Array.isArray(order?.attachments)
+    ? order.attachments.map((att: any, index: number) => {
+        const isLargeInline = typeof att?.url === 'string' && att.url.startsWith('data:');
+        if (!isLargeInline) return att;
+        return {
+          ...att,
+          url: undefined,
+          attachmentIndex: index,
+          hasInlineData: true,
+        };
+      })
+    : undefined;
+
+  return {
+    ...order,
+    attachments,
+  };
+}
+
+function sanitizeOrdersForList(list: any[]) {
+  return (list || []).map((order: any) => sanitizeOrderForList(order));
+}
+
 function isAdminActor(actor: Actor) {
   return actor.role === 'admin';
 }
@@ -119,14 +143,45 @@ function bumpVersion(version?: string) {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'GET') {
+      if (req.query.action === 'attachment') {
+        const type = req.query.type;
+        const orderId = Number(req.query.orderId);
+        const index = Number(req.query.index);
+
+        if (!isValidType(type)) {
+          return res.status(400).json({ message: 'Invalid order type' });
+        }
+        if (!Number.isFinite(orderId) || !Number.isFinite(index) || index < 0) {
+          return res.status(400).json({ message: 'Invalid attachment query' });
+        }
+
+        const data = await readData();
+        const list = type === 'design' ? data.ordersDesign : data.ordersVideo;
+        const target = (list || []).find((o: any) => o.id === orderId);
+        if (!target) {
+          return res.status(404).json({ message: 'Order not found' });
+        }
+
+        const att = Array.isArray(target.attachments) ? target.attachments[index] : undefined;
+        if (!att?.url) {
+          return res.status(404).json({ message: 'Attachment not found' });
+        }
+
+        return res.json({
+          url: att.url,
+          name: att.name,
+          type: att.type,
+        });
+      }
+
       const data = await readData();
       const actorRole = normalizeRole(req.query.actorRole);
       // Strip ordererToken before returning to clients
       const sanitized = {
         ...data,
-        ordersDesign: stripToken(data.ordersDesign || []),
-        ordersVideo: stripToken(data.ordersVideo || []),
-        deletedOrders: actorRole === 'admin' ? stripToken(data.deletedOrders || []) : [],
+        ordersDesign: sanitizeOrdersForList(stripToken(data.ordersDesign || [])),
+        ordersVideo: sanitizeOrdersForList(stripToken(data.ordersVideo || [])),
+        deletedOrders: actorRole === 'admin' ? sanitizeOrdersForList(stripToken(data.deletedOrders || [])) : [],
         orderAuditLogs: actorRole === 'admin' ? (data.orderAuditLogs || []).slice(0, 200) : [],
       };
       return res.json(sanitized);

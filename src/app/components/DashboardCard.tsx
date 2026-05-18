@@ -12,13 +12,14 @@ interface DashboardCardProps {
     finalLink?: string;
     revisionNote?: string;
     receivedBy?: string;
-    attachments?: Array<{ type: string; name: string; url?: string; size?: number }>;
+    attachments?: Array<{ type: string; name: string; url?: string; size?: number; attachmentIndex?: number; hasInlineData?: boolean }>;
   };
   onDelete?: () => void;
   onReceive?: () => void;
   onSubmitFinal?: (finalLink: string) => void;
   onRequestRevision?: (note: string) => void;
   onApprove?: () => void;
+  onResolveAttachmentUrl?: (orderId: number, attachmentIndex: number) => Promise<string | null>;
   isAdmin?: boolean;
   isOrderer?: boolean;
 }
@@ -31,7 +32,7 @@ const statusColor: Record<string, string> = {
   "Đã duyệt": "bg-sky-100 text-sky-700",
 };
 
-export default function DashboardCard({ order, onDelete, onReceive, onSubmitFinal, onRequestRevision, onApprove, isAdmin = false, isOrderer = false }: DashboardCardProps) {
+export default function DashboardCard({ order, onDelete, onReceive, onSubmitFinal, onRequestRevision, onApprove, onResolveAttachmentUrl, isAdmin = false, isOrderer = false }: DashboardCardProps) {
   const [finalLink, setFinalLink] = useState(order.finalLink || "");
   const [revisionNote, setRevisionNote] = useState("");
   const [isContentExpanded, setIsContentExpanded] = useState(false);
@@ -58,6 +59,24 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
     } catch {
       window.open(dataUrl, "_self");
     }
+  }
+
+  async function handleOpenAttachment(att: any) {
+    const inlineIndex = Number(att?.attachmentIndex);
+    let url = att?.url;
+
+    if (!url && Number.isFinite(inlineIndex) && inlineIndex >= 0 && onResolveAttachmentUrl) {
+      url = await onResolveAttachmentUrl(order.id, inlineIndex);
+    }
+
+    if (!url) return;
+
+    if (isDataUrl(url)) {
+      openDataUrlInBrowser(url);
+      return;
+    }
+
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   useEffect(() => {
@@ -102,18 +121,14 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
           <div className="flex flex-col gap-1 mt-1">
             {order.attachments.map((att: any, idx: number) => (
               <div key={idx} className="text-[#D81B60] break-words">
-                {att.type === 'file' && att.url ? (
-                  isDataUrl(att.url) ? (
-                    <button
-                      type="button"
-                      className="underline text-xs text-left"
-                      onClick={() => openDataUrlInBrowser(att.url)}
-                    >
-                      {att.name || `File ${idx + 1}`}
-                    </button>
-                  ) : (
-                    <a href={att.url} target="_blank" rel="noreferrer" className="underline text-xs">{att.name || `File ${idx + 1}`}</a>
-                  )
+                {att.type === 'file' && (att.url || att.hasInlineData) ? (
+                  <button
+                    type="button"
+                    className="underline text-xs text-left"
+                    onClick={() => handleOpenAttachment(att)}
+                  >
+                    {att.name || `File ${idx + 1}`}
+                  </button>
                 ) : isExternalUrl(att.url) ? (
                   <a href={att.url} target="_blank" rel="noreferrer" className="underline text-xs">{att.name || att.url}</a>
                 ) : (
