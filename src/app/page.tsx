@@ -50,19 +50,39 @@ export default function Home() {
   const fetchRequestSeqRef = useRef(0);
   const sseFetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch orders từ server (cả 2 trình duyệt đều đọc từ cùng 1 nơi)
-  async function fetchOrders(roleOverride?: 'admin' | 'design' | 'video' | 'user') {
+  // Fetch orders chỉ cho tab đang active hoặc khi cần
+  async function fetchOrders(roleOverride?: 'admin' | 'design' | 'video' | 'user', onlyTab?: 'design' | 'video') {
     try {
       const seq = ++fetchRequestSeqRef.current;
       const actorRole = roleOverride || currentRoleRef.current || admin?.role || 'user';
-      const res = await fetch(`/api/orders?actorRole=${encodeURIComponent(actorRole)}`);
+      let url = `/api/orders?actorRole=${encodeURIComponent(actorRole)}`;
+      if (onlyTab === 'design') {
+        url += '&odOffset=0&odLimit=100';
+      } else if (onlyTab === 'video') {
+        url += '&ovOffset=0&ovLimit=100';
+      } else {
+        url += '&odOffset=0&odLimit=100&ovOffset=0&ovLimit=100&delOffset=0&delLimit=50&auditOffset=0&auditLimit=50';
+      }
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       if (seq !== fetchRequestSeqRef.current) return;
-      setOrdersDesign(data.ordersDesign || []);
-      setOrdersVideo(data.ordersVideo || []);
-      setDeletedOrders(data.deletedOrders || []);
-      setOrderAuditLogs(data.orderAuditLogs || []);
+      if (onlyTab === 'design') {
+        setOrdersDesign(data.ordersDesign || []);
+        setDeletedOrders([]);
+        setOrderAuditLogs([]);
+        setOrdersVideo([]);
+      } else if (onlyTab === 'video') {
+        setOrdersVideo(data.ordersVideo || []);
+        setDeletedOrders([]);
+        setOrderAuditLogs([]);
+        setOrdersDesign([]);
+      } else {
+        setOrdersDesign(data.ordersDesign || []);
+        setOrdersVideo(data.ordersVideo || []);
+        setDeletedOrders(data.deletedOrders || []);
+        setOrderAuditLogs(data.orderAuditLogs || []);
+      }
       setNotifications(data.notifications || []);
     } catch {}
   }
@@ -78,7 +98,7 @@ export default function Home() {
 
   // Fetch ngay khi load trang
   useEffect(() => {
-    fetchOrders('user');
+    fetchOrders('user', activeTab === 'order-design' ? 'design' : activeTab === 'order-video' ? 'video' : undefined);
 
     // Restore phiên đăng nhập sau khi F5
     try {
@@ -104,7 +124,14 @@ export default function Home() {
     const onOrdersUpdated = () => {
       if (sseFetchTimerRef.current) clearTimeout(sseFetchTimerRef.current);
       sseFetchTimerRef.current = setTimeout(() => {
-        fetchOrders(currentRoleRef.current);
+        // Chỉ fetch lại đúng tab đang active
+        if (activeTab === 'order-design') {
+          fetchOrders(currentRoleRef.current, 'design');
+        } else if (activeTab === 'order-video') {
+          fetchOrders(currentRoleRef.current, 'video');
+        } else {
+          fetchOrders(currentRoleRef.current);
+        }
       }, 200);
     };
 
@@ -141,8 +168,8 @@ export default function Home() {
   }, [admin?.role]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [admin?.role]);
+    fetchOrders(undefined, activeTab === 'order-design' ? 'design' : activeTab === 'order-video' ? 'video' : undefined);
+  }, [admin?.role, activeTab]);
 
   // Phát âm thanh khi có thông báo mới dành cho role hiện tại (không chạy ở lần load đầu).
   function isNotifForMe(n: any) {

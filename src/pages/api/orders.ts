@@ -176,13 +176,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const data = await readData();
       const actorRole = normalizeRole(req.query.actorRole);
-      // Strip ordererToken before returning to clients
+      // Pagination params
+      const odOffset = Number(req.query.odOffset) || 0;
+      const odLimit = Math.max(1, Math.min(Number(req.query.odLimit) || 100, 200));
+      const ovOffset = Number(req.query.ovOffset) || 0;
+      const ovLimit = Math.max(1, Math.min(Number(req.query.ovLimit) || 100, 200));
+      const delOffset = Number(req.query.delOffset) || 0;
+      const delLimit = Math.max(1, Math.min(Number(req.query.delLimit) || 50, 200));
+      const auditOffset = Number(req.query.auditOffset) || 0;
+      const auditLimit = Math.max(1, Math.min(Number(req.query.auditLimit) || 50, 200));
+
+      // Apply pagination
+      const ordersDesign = sanitizeOrdersForList(stripToken((data.ordersDesign || []).slice(odOffset, odOffset + odLimit)));
+      const ordersVideo = sanitizeOrdersForList(stripToken((data.ordersVideo || []).slice(ovOffset, ovOffset + ovLimit)));
+      const deletedOrders = actorRole === 'admin' ? sanitizeOrdersForList(stripToken((data.deletedOrders || []).slice(delOffset, delOffset + delLimit))) : [];
+      const orderAuditLogs = actorRole === 'admin' ? (data.orderAuditLogs || []).slice(auditOffset, auditOffset + auditLimit) : [];
+
       const sanitized = {
         ...data,
-        ordersDesign: sanitizeOrdersForList(stripToken(data.ordersDesign || [])),
-        ordersVideo: sanitizeOrdersForList(stripToken(data.ordersVideo || [])),
-        deletedOrders: actorRole === 'admin' ? sanitizeOrdersForList(stripToken(data.deletedOrders || [])) : [],
-        orderAuditLogs: actorRole === 'admin' ? (data.orderAuditLogs || []).slice(0, 200) : [],
+        ordersDesign,
+        ordersVideo,
+        deletedOrders,
+        orderAuditLogs,
       };
       return res.json(sanitized);
     }
