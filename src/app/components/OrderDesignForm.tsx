@@ -29,6 +29,15 @@ interface OrderDesignFormData {
   content: string;
 }
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Không thể đọc file đính kèm"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) => void }) {
   const {
     register,
@@ -60,9 +69,10 @@ export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) 
       }
       const rawFiles = (data as any).file;
       const fileList = rawFiles instanceof FileList ? Array.from(rawFiles) : [];
-      fileList.forEach((f: any) => {
-        attachments.push({ type: "file", name: f.name, size: f.size });
-      });
+      for (const f of fileList as File[]) {
+        const dataUrl = await readFileAsDataUrl(f);
+        attachments.push({ type: "file", name: f.name, size: f.size, url: dataUrl });
+      }
       onCreate({
         id: orderId,
         title: `${data.department} - ${data.type}`,
