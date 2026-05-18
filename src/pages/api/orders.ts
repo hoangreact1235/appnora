@@ -11,8 +11,10 @@ export const config = {
 };
 
 const ORDERS_KEY = 'nora_orders_data';
+const ATTACHMENT_KEY_PREFIX = 'nora_attachment';
 const DELETED_RETENTION_DAYS = 60;
 const AUDIT_RETENTION_DAYS = 180;
+const NOTIFICATION_MAX_ITEMS = 2000;
 
 type Actor = {
   username?: string;
@@ -65,6 +67,8 @@ function applyRetention(data: any) {
     return Number.isFinite(createdAtMs) && createdAtMs >= auditCutoff;
   });
 
+  data.notifications = (data.notifications || []).slice(0, NOTIFICATION_MAX_ITEMS);
+
   return data;
 }
 
@@ -86,8 +90,9 @@ function stripToken(list: any[]) {
 function sanitizeOrderForList(order: any) {
   const attachments = Array.isArray(order?.attachments)
     ? order.attachments.map((att: any, index: number) => {
-        const isLargeInline = typeof att?.url === 'string' && att.url.startsWith('data:');
-        if (!isLargeInline) return att;
+        const hasDataUrl = typeof att?.url === 'string' && att.url.startsWith('data:');
+        const hasStoredBlob = typeof att?.storageKey === 'string' && !!att.storageKey;
+        if (!hasDataUrl && !hasStoredBlob) return att;
         return {
           ...att,
           url: undefined,
@@ -126,13 +131,75 @@ function queryFlag(value: any, defaultValue: boolean) {
   return String(value) === '1' || String(value).toLowerCase() === 'true';
 }
 
+function buildAttachmentStorageKey(orderId: number, attachmentIndex: number) {
+  return `${ATTACHMENT_KEY_PREFIX}:${orderId}:${attachmentIndex}`;
+}
+
+async function offloadOrderAttachments(order: any) {
+  if (!Array.isArray(order?.attachments)) return order;
+  if (!Number.isFinite(Number(order?.id))) return order;
+
+  const orderId = Number(order.id);
+  let changed = false;
+  const attachments = await Promise.all(
+    order.attachments.map(async (att: any, index: number) => {
+      const hasDataUrl = typeof att?.url === 'string' && att.url.startsWith('data:');
+      if (!hasDataUrl) return att;
+
+      const storageKey = typeof att?.storageKey === 'string' && att.storageKey
+        ? att.storageKey
+        : buildAttachmentStorageKey(orderId, index);
+
+      await redisSet(storageKey, att.url);
+      changed = true;
+
+      return {
+        ...att,
+        url: undefined,
+        storageKey,
+        hasInlineData: true,
+        attachmentIndex: Number.isFinite(Number(att?.attachmentIndex)) ? Number(att.attachmentIndex) : index,
+      };
+    })
+  );
+
+  if (!changed) return order;
+  return {
+    ...order,
+    attachments,
+  };
+}
+
+async function offloadInlineAttachmentsInData(data: any) {
+  let changed = false;
+
+  const processList = async (list: any[]) => {
+    return Promise.all((list || []).map(async (order: any) => {
+      const nextOrder = await offloadOrderAttachments(order);
+      if (nextOrder !== order) changed = true;
+      return nextOrder;
+    }));
+  };
+
+  data.ordersDesign = await processList(data.ordersDesign || []);
+  data.ordersVideo = await processList(data.ordersVideo || []);
+  data.deletedOrders = await processList(data.deletedOrders || []);
+
+  return changed;
+}
+
 async function readData() {
   const raw = await redisGet(ORDERS_KEY);
   if (!raw) {
     return { ordersDesign: [], ordersVideo: [], notifications: [], deletedOrders: [], orderAuditLogs: [] };
   }
 
-  return applyRetention(normalizeData(JSON.parse(raw)));
+  const data = applyRetention(normalizeData(JSON.parse(raw)));
+  const changed = await offloadInlineAttachmentsInData(data);
+  if (changed) {
+    await writeData(data);
+  }
+  return data;
 }
 
 async function writeData(data: any) {
@@ -168,12 +235,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const att = Array.isArray(target.attachments) ? target.attachments[index] : undefined;
-        if (!att?.url) {
+        if (!att) {
           return res.status(404).json({ message: 'Attachment not found' });
         }
 
+        let url = att.url;
+        if (!url && typeof att?.storageKey === 'string' && att.storageKey) {
+          url = await redisGet(att.storageKey);
+        }
+        if (!url) {
+          return res.status(404).json({ message: 'Attachment content not found' });
+        }
+
         return res.json({
-          url: att.url,
+          url,
           name: att.name,
           type: att.type,
         });
@@ -224,7 +299,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       const data = await readData();
       const preparedOrder = {
-        ...order,
+        ...(await offloadOrderAttachments(order)),
         isDeleted: false,
         createdAt: order?.createdAt || new Date().toISOString()
       };
@@ -295,6 +370,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ordererToken: receivedOrder.ordererToken || '',
             name: `${receivedOrder.title} - Đã được nhận`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            createdAt: new Date().toISOString(),
             read: false,
             forRole: 'user',
             forType: type
@@ -339,6 +415,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ordererToken: deliveredOrder.ordererToken || '',
             name: `${deliveredOrder.title} - Final link đã sẵn sàng`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            createdAt: new Date().toISOString(),
             read: false,
             forRole: 'user',
             forType: type
@@ -393,6 +470,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           orderId,
           name: `${target.title} - Yêu cầu sửa: ${note || 'Cần chỉnh sửa bản final'}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          createdAt: new Date().toISOString(),
           read: false,
           forRole: 'admin',
           forType: type
@@ -444,6 +522,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           orderId,
           name: `${target.title} - Người order đã xác nhận hoàn thành`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          createdAt: new Date().toISOString(),
           read: false,
           forRole: 'admin',
           forType: type
@@ -502,6 +581,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             orderId,
             name: `${target.title} - Đã bị xóa bởi ${actor.name}`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            createdAt: new Date().toISOString(),
             read: false,
             forRole: 'admin',
             forType: type,
