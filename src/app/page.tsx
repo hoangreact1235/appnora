@@ -47,6 +47,7 @@ export default function Home() {
   const didInitNotifications = useRef(false);
   const prevUnreadIdsRef = useRef<Set<number>>(new Set());
   const currentRoleRef = useRef<'admin' | 'design' | 'video' | 'user'>('user');
+  const activeTabRef = useRef<string>('order-design');
   const fetchRequestSeqRef = useRef(0);
   const sseFetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -57,33 +58,32 @@ export default function Home() {
       const actorRole = roleOverride || currentRoleRef.current || admin?.role || 'user';
       let url = `/api/orders?actorRole=${encodeURIComponent(actorRole)}`;
       if (onlyTab === 'design') {
-        url += '&odOffset=0&odLimit=100';
+        url += '&includeDesign=1&includeVideo=0&includeDeleted=0&includeAudit=0&odOffset=0&odLimit=100&notifOffset=0&notifLimit=200';
       } else if (onlyTab === 'video') {
-        url += '&ovOffset=0&ovLimit=100';
+        url += '&includeDesign=0&includeVideo=1&includeDeleted=0&includeAudit=0&ovOffset=0&ovLimit=100&notifOffset=0&notifLimit=200';
       } else {
-        url += '&odOffset=0&odLimit=100&ovOffset=0&ovLimit=100&delOffset=0&delLimit=50&auditOffset=0&auditLimit=50';
+        url += '&includeDesign=1&includeVideo=1&includeDeleted=1&includeAudit=1&odOffset=0&odLimit=100&ovOffset=0&ovLimit=100&delOffset=0&delLimit=100&auditOffset=0&auditLimit=100&notifOffset=0&notifLimit=200';
       }
       const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       if (seq !== fetchRequestSeqRef.current) return;
-      if (onlyTab === 'design') {
+
+      if (Array.isArray(data.ordersDesign)) {
         setOrdersDesign(data.ordersDesign || []);
-        setDeletedOrders([]);
-        setOrderAuditLogs([]);
-        setOrdersVideo([]);
-      } else if (onlyTab === 'video') {
+      }
+      if (Array.isArray(data.ordersVideo)) {
         setOrdersVideo(data.ordersVideo || []);
-        setDeletedOrders([]);
-        setOrderAuditLogs([]);
-        setOrdersDesign([]);
-      } else {
-        setOrdersDesign(data.ordersDesign || []);
-        setOrdersVideo(data.ordersVideo || []);
+      }
+      if (Array.isArray(data.deletedOrders)) {
         setDeletedOrders(data.deletedOrders || []);
+      }
+      if (Array.isArray(data.orderAuditLogs)) {
         setOrderAuditLogs(data.orderAuditLogs || []);
       }
-      setNotifications(data.notifications || []);
+      if (Array.isArray(data.notifications)) {
+        setNotifications(data.notifications || []);
+      }
     } catch {}
   }
 
@@ -125,9 +125,10 @@ export default function Home() {
       if (sseFetchTimerRef.current) clearTimeout(sseFetchTimerRef.current);
       sseFetchTimerRef.current = setTimeout(() => {
         // Chỉ fetch lại đúng tab đang active
-        if (activeTab === 'order-design') {
+        const currentTab = activeTabRef.current;
+        if (currentTab === 'order-design') {
           fetchOrders(currentRoleRef.current, 'design');
-        } else if (activeTab === 'order-video') {
+        } else if (currentTab === 'order-video') {
           fetchOrders(currentRoleRef.current, 'video');
         } else {
           fetchOrders(currentRoleRef.current);
@@ -162,6 +163,10 @@ export default function Home() {
   }, [admin]);
 
   useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
     currentRoleRef.current = (admin?.role || 'user') as 'admin' | 'design' | 'video' | 'user';
     didInitNotifications.current = false;
     prevUnreadIdsRef.current = new Set();
@@ -170,6 +175,12 @@ export default function Home() {
   useEffect(() => {
     fetchOrders(undefined, activeTab === 'order-design' ? 'design' : activeTab === 'order-video' ? 'video' : undefined);
   }, [admin?.role, activeTab]);
+
+  useEffect(() => {
+    if (showDeletedOrders || showOpsStats) {
+      fetchOrders(undefined);
+    }
+  }, [showDeletedOrders, showOpsStats]);
 
   // Phát âm thanh khi có thông báo mới dành cho role hiện tại (không chạy ở lần load đầu).
   function isNotifForMe(n: any) {
@@ -318,11 +329,21 @@ export default function Home() {
   }
 
   async function handleDeleteOrder(type: 'design' | 'video', orderId: number) {
-    await fetch('/api/orders', {
+    const res = await fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', type, orderId, actor: getActorPayload() })
     });
+    if (!res.ok) {
+      let message = 'Xóa order thất bại.';
+      try {
+        const data = await res.json();
+        if (typeof data?.message === 'string' && data.message.trim()) {
+          message = data.message;
+        }
+      } catch {}
+      toast.error(message);
+    }
     fetchOrders();
   }
 

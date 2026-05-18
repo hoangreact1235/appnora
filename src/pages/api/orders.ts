@@ -121,6 +121,11 @@ function isValidType(type: any): type is 'design' | 'video' {
   return type === 'design' || type === 'video';
 }
 
+function queryFlag(value: any, defaultValue: boolean) {
+  if (value === undefined) return defaultValue;
+  return String(value) === '1' || String(value).toLowerCase() === 'true';
+}
+
 async function readData() {
   const raw = await redisGet(ORDERS_KEY);
   if (!raw) {
@@ -176,7 +181,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const data = await readData();
       const actorRole = normalizeRole(req.query.actorRole);
-      // Pagination params
+      // Include flags + pagination params
+      const includeDesign = queryFlag(req.query.includeDesign, true);
+      const includeVideo = queryFlag(req.query.includeVideo, true);
+      const includeDeleted = queryFlag(req.query.includeDeleted, actorRole === 'admin');
+      const includeAudit = queryFlag(req.query.includeAudit, actorRole === 'admin');
       const odOffset = Number(req.query.odOffset) || 0;
       const odLimit = Math.max(1, Math.min(Number(req.query.odLimit) || 100, 200));
       const ovOffset = Number(req.query.ovOffset) || 0;
@@ -185,21 +194,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const delLimit = Math.max(1, Math.min(Number(req.query.delLimit) || 50, 200));
       const auditOffset = Number(req.query.auditOffset) || 0;
       const auditLimit = Math.max(1, Math.min(Number(req.query.auditLimit) || 50, 200));
+      const notifOffset = Number(req.query.notifOffset) || 0;
+      const notifLimit = Math.max(1, Math.min(Number(req.query.notifLimit) || 200, 500));
 
-      // Apply pagination
-      const ordersDesign = sanitizeOrdersForList(stripToken((data.ordersDesign || []).slice(odOffset, odOffset + odLimit)));
-      const ordersVideo = sanitizeOrdersForList(stripToken((data.ordersVideo || []).slice(ovOffset, ovOffset + ovLimit)));
-      const deletedOrders = actorRole === 'admin' ? sanitizeOrdersForList(stripToken((data.deletedOrders || []).slice(delOffset, delOffset + delLimit))) : [];
-      const orderAuditLogs = actorRole === 'admin' ? (data.orderAuditLogs || []).slice(auditOffset, auditOffset + auditLimit) : [];
-
-      const sanitized = {
-        ...data,
-        ordersDesign,
-        ordersVideo,
-        deletedOrders,
-        orderAuditLogs,
+      const payload: any = {
+        notifications: (data.notifications || []).slice(notifOffset, notifOffset + notifLimit),
       };
-      return res.json(sanitized);
+
+      if (includeDesign) {
+        payload.ordersDesign = sanitizeOrdersForList(stripToken((data.ordersDesign || []).slice(odOffset, odOffset + odLimit)));
+      }
+      if (includeVideo) {
+        payload.ordersVideo = sanitizeOrdersForList(stripToken((data.ordersVideo || []).slice(ovOffset, ovOffset + ovLimit)));
+      }
+      if (includeDeleted && actorRole === 'admin') {
+        payload.deletedOrders = sanitizeOrdersForList(stripToken((data.deletedOrders || []).slice(delOffset, delOffset + delLimit)));
+      }
+      if (includeAudit && actorRole === 'admin') {
+        payload.orderAuditLogs = (data.orderAuditLogs || []).slice(auditOffset, auditOffset + auditLimit);
+      }
+
+      return res.json(payload);
     }
 
     if (req.method === 'POST') {
