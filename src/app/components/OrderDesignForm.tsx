@@ -53,6 +53,17 @@ export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) 
     localStorage.setItem(`order_token_${orderId}`, token);
     if (onCreate) {
       console.log("OrderDesignForm onCreate called", data);
+      const attachments = [];
+      const docValue = typeof data.document === 'string' ? data.document : '';
+      if (docValue?.trim()) {
+        attachments.push({ type: 'text', name: 'Tài liệu', url: docValue });
+      }
+      if (data.file && data.file.length > 0) {
+        const fileList = Array.from(data.file);
+        fileList.forEach((f: any) => {
+          attachments.push({ type: 'file', name: f.name, size: f.size });
+        });
+      }
       onCreate({
         ...data,
         id: orderId,
@@ -61,7 +72,8 @@ export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) 
         deadline: data.deadline,
         size: data.size,
         version: "V0",
-        content: data.content
+        content: data.content,
+        attachments: attachments.length > 0 ? attachments : undefined
       });
     }
     try {

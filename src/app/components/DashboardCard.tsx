@@ -12,6 +12,7 @@ interface DashboardCardProps {
     finalLink?: string;
     revisionNote?: string;
     receivedBy?: string;
+    attachments?: Array<{ type: string; name: string; url?: string; size?: number }>;
   };
   onDelete?: () => void;
   onReceive?: () => void;
@@ -57,7 +58,7 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
       )}
       <div className="text-[15px] mb-2 font-semibold text-[#6B184E]">Nội dung yêu cầu:<br/>
         <span
-          className="block text-[#6B184E] whitespace-pre-line font-normal"
+          className="block text-[#6B184E] whitespace-pre-line font-normal break-words"
           style={isContentExpanded ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}
         >{order.content}</span>
         <button
@@ -69,6 +70,22 @@ export default function DashboardCard({ order, onDelete, onReceive, onSubmitFina
         <div className="text-[13px] mb-2 text-[#6B184E]">
           <span className="font-semibold">Yêu cầu sửa: </span>
           <span>{order.revisionNote}</span>
+        </div>
+      )}
+      {!!order.attachments && order.attachments.length > 0 && (
+        <div className="text-[12px] mb-2 text-[#6B184E]">
+          <span className="font-semibold">Tài liệu đính kèm:</span>
+          <div className="flex flex-col gap-1 mt-1">
+            {order.attachments.map((att: any, idx: number) => (
+              <div key={idx} className="text-[#D81B60] break-words">
+                {att.type === 'file' && att.url ? (
+                  <a href={att.url} target="_blank" rel="noreferrer" className="underline text-xs">{att.name || `File ${idx + 1}`}</a>
+                ) : (
+                  <span className="text-xs">{att.name || att.url}</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {!!order.finalLink && (
