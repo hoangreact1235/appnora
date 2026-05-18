@@ -19,6 +19,8 @@ const SIZE_RATIO_SUGGESTIONS = [
   "A4 -> file in giấy",
 ];
 
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+
 interface OrderDesignFormData {
   department: string;
   type: string;
@@ -70,6 +72,10 @@ export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) 
       const rawFiles = (data as any).file;
       const fileList = rawFiles instanceof FileList ? Array.from(rawFiles) : [];
       for (const f of fileList as File[]) {
+        if (f.size > MAX_ATTACHMENT_BYTES) {
+          toast.error("File đính kèm vượt quá 5MB. Vui lòng dùng link tài liệu hoặc file nhỏ hơn.");
+          return;
+        }
         const dataUrl = await readFileAsDataUrl(f);
         attachments.push({ type: "file", name: f.name, size: f.size, url: dataUrl });
       }
@@ -147,7 +153,7 @@ export default function OrderDesignForm({ onCreate }: { onCreate?: (order: any) 
           placeholder="Nhập link hoặc mô tả tài liệu..."
           className="rounded-md border border-[#F3C1D7] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#D81B60] placeholder:text-[#B97BA6] placeholder:font-medium text-[#D81B60] bg-[#FDE7F0]" />
 
-        <label className="text-[#D81B60] font-normal">File đính kèm (docs, pdf... tối đa 15MB)</label>
+        <label className="text-[#D81B60] font-normal">File đính kèm (docs, pdf... tối đa 5MB)</label>
         <div className="rounded-md border border-[#F3C1D7] bg-[#FDE7F0] p-2 flex items-center gap-2">
           <input
             type="file"

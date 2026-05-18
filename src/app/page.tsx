@@ -13,6 +13,7 @@ import StaffManagement from "./components/StaffManagement";
 import NotificationPopup from "./components/NotificationPopup";
 import OperationsStatsPopup from "./components/OperationsStatsPopup";
 import DeletedOrdersPopup from "./components/DeletedOrdersPopup";
+import { toast } from "react-toastify";
 
 const ADMIN_SESSION_KEY = "nora_admin_session";
 
@@ -226,6 +227,7 @@ export default function Home() {
       }
       setNotifications(prev => [notification, ...prev]);
     } catch {
+      toast.error('Không lưu được order. Vui lòng giảm dung lượng file đính kèm hoặc dùng link tài liệu.');
       fetchOrders();
     }
   }
