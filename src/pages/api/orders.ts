@@ -25,6 +25,7 @@ type Actor = {
 
 function normalizeRole(role: any): Actor['role'] {
   if (role === 'admin' || role === 'design' || role === 'video') return role;
+  if (role === 'superadmin' || role === 'owner' || role === 'lead' || role === 'leader') return 'admin';
   return 'user';
 }
 
@@ -124,6 +125,15 @@ function canManageType(actor: Actor, type: any) {
 
 function isValidType(type: any): type is 'design' | 'video' {
   return type === 'design' || type === 'video';
+}
+
+function normalizeOrderId(orderId: any) {
+  const normalized = Number(orderId);
+  return Number.isFinite(normalized) ? normalized : null;
+}
+
+function isSameOrderId(order: any, orderId: number) {
+  return Number(order?.id) === orderId;
 }
 
 function queryFlag(value: any, defaultValue: boolean) {
@@ -328,6 +338,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { action, notificationId, type, orderId, finalLink, receivedBy } = req.body;
       const data = await readData();
       const actor = getActor(req);
+      const normalizedOrderId = normalizeOrderId(orderId);
 
     if (action === 'mark-read') {
       data.notifications = data.notifications.map((n: any) =>
@@ -339,25 +350,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isValidType(type)) {
         return res.status(400).json({ message: 'Invalid order type' });
       }
+      if (normalizedOrderId == null) {
+        return res.status(400).json({ message: 'Invalid order id' });
+      }
       if (!canManageType(actor, type)) {
         return res.status(403).json({ message: 'No permission to receive this order type' });
       }
       const targetOrdersR = type === 'design' ? data.ordersDesign : data.ordersVideo;
-      const receivedOrder = targetOrdersR.find((o: any) => o.id === orderId);
+      const receivedOrder = targetOrdersR.find((o: any) => isSameOrderId(o, normalizedOrderId));
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '', receivedAt: o.receivedAt || new Date().toISOString() } : o
+          isSameOrderId(o, normalizedOrderId) ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '', receivedAt: o.receivedAt || new Date().toISOString() } : o
         );
       } else {
         data.ordersVideo = data.ordersVideo.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '', receivedAt: o.receivedAt || new Date().toISOString() } : o
+          isSameOrderId(o, normalizedOrderId) ? { ...o, status: 'Đã nhận', receivedBy: receivedBy || '', receivedAt: o.receivedAt || new Date().toISOString() } : o
         );
       }
       if (receivedOrder) {
         pushAudit(data, {
           action: 'receive',
           type,
-          orderId,
+          orderId: normalizedOrderId,
           title: receivedOrder.title,
           by: actor.name,
           byRole: actor.role,
@@ -366,7 +380,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           {
             id: Date.now() + 1,
             type,
-            orderId,
+            orderId: normalizedOrderId,
             ordererToken: receivedOrder.ordererToken || '',
             name: `${receivedOrder.title} - Đã được nhận`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -384,25 +398,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isValidType(type)) {
         return res.status(400).json({ message: 'Invalid order type' });
       }
+      if (normalizedOrderId == null) {
+        return res.status(400).json({ message: 'Invalid order id' });
+      }
       if (!canManageType(actor, type)) {
         return res.status(403).json({ message: 'No permission to deliver this order type' });
       }
       const targetOrdersD = type === 'design' ? data.ordersDesign : data.ordersVideo;
-      const deliveredOrder = targetOrdersD.find((o: any) => o.id === orderId);
+      const deliveredOrder = targetOrdersD.find((o: any) => isSameOrderId(o, normalizedOrderId));
       if (type === 'design') {
         data.ordersDesign = data.ordersDesign.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '', completedAt: new Date().toISOString() } : o
+          isSameOrderId(o, normalizedOrderId) ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '', completedAt: new Date().toISOString() } : o
         );
       } else {
         data.ordersVideo = data.ordersVideo.map((o: any) =>
-          o.id === orderId ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '', completedAt: new Date().toISOString() } : o
+          isSameOrderId(o, normalizedOrderId) ? { ...o, status: 'Hoàn thành', finalLink, version: bumpVersion(o.version), revisionNote: '', completedAt: new Date().toISOString() } : o
         );
       }
       if (deliveredOrder) {
         pushAudit(data, {
           action: 'deliver',
           type,
-          orderId,
+          orderId: normalizedOrderId,
           title: deliveredOrder.title,
           by: actor.name,
           byRole: actor.role,
@@ -411,7 +428,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           {
             id: Date.now() + 1,
             type,
-            orderId,
+            orderId: normalizedOrderId,
             ordererToken: deliveredOrder.ordererToken || '',
             name: `${deliveredOrder.title} - Final link đã sẵn sàng`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -429,13 +446,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isValidType(type)) {
         return res.status(400).json({ message: 'Invalid order type' });
       }
+      if (normalizedOrderId == null) {
+        return res.status(400).json({ message: 'Invalid order id' });
+      }
       if (actor.role !== 'user') {
         return res.status(403).json({ message: 'Only orderer can request revision' });
       }
       const note = String(req.body.note || '').trim();
       const clientToken = String(req.body.ordererToken || '');
       const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
-      const target = targetOrders.find((o: any) => o.id === orderId);
+      const target = targetOrders.find((o: any) => isSameOrderId(o, normalizedOrderId));
 
       if (!target) {
         return res.status(404).json({ message: 'Order not found' });
@@ -448,15 +468,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const updatedOrder = { ...target, status: 'Cần sửa', revisionNote: note };
       if (type === 'design') {
-        data.ordersDesign = data.ordersDesign.map((o: any) => (o.id === orderId ? updatedOrder : o));
+        data.ordersDesign = data.ordersDesign.map((o: any) => (isSameOrderId(o, normalizedOrderId) ? updatedOrder : o));
       } else {
-        data.ordersVideo = data.ordersVideo.map((o: any) => (o.id === orderId ? updatedOrder : o));
+        data.ordersVideo = data.ordersVideo.map((o: any) => (isSameOrderId(o, normalizedOrderId) ? updatedOrder : o));
       }
 
       pushAudit(data, {
         action: 'request-revision',
         type,
-        orderId,
+        orderId: normalizedOrderId,
         title: target.title,
         by: actor.name,
         byRole: actor.role,
@@ -467,7 +487,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         {
           id: Date.now() + 2,
           type,
-          orderId,
+          orderId: normalizedOrderId,
           name: `${target.title} - Yêu cầu sửa: ${note || 'Cần chỉnh sửa bản final'}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           createdAt: new Date().toISOString(),
@@ -483,12 +503,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isValidType(type)) {
         return res.status(400).json({ message: 'Invalid order type' });
       }
+      if (normalizedOrderId == null) {
+        return res.status(400).json({ message: 'Invalid order id' });
+      }
       if (actor.role !== 'user') {
         return res.status(403).json({ message: 'Only orderer can approve completion' });
       }
       const clientToken = String(req.body.ordererToken || '');
       const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
-      const target = targetOrders.find((o: any) => o.id === orderId);
+      const target = targetOrders.find((o: any) => isSameOrderId(o, normalizedOrderId));
 
       if (!target) {
         return res.status(404).json({ message: 'Order not found' });
@@ -501,15 +524,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const approvedOrder = { ...target, status: 'Đã duyệt' };
       if (type === 'design') {
-        data.ordersDesign = data.ordersDesign.map((o: any) => (o.id === orderId ? approvedOrder : o));
+        data.ordersDesign = data.ordersDesign.map((o: any) => (isSameOrderId(o, normalizedOrderId) ? approvedOrder : o));
       } else {
-        data.ordersVideo = data.ordersVideo.map((o: any) => (o.id === orderId ? approvedOrder : o));
+        data.ordersVideo = data.ordersVideo.map((o: any) => (isSameOrderId(o, normalizedOrderId) ? approvedOrder : o));
       }
 
       pushAudit(data, {
         action: 'approve',
         type,
-        orderId,
+        orderId: normalizedOrderId,
         title: target.title,
         by: actor.name,
         byRole: actor.role,
@@ -519,7 +542,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         {
           id: Date.now() + 3,
           type,
-          orderId,
+          orderId: normalizedOrderId,
           name: `${target.title} - Người order đã xác nhận hoàn thành`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           createdAt: new Date().toISOString(),
@@ -535,11 +558,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isValidType(type)) {
         return res.status(400).json({ message: 'Invalid order type' });
       }
+      if (normalizedOrderId == null) {
+        return res.status(400).json({ message: 'Invalid order id' });
+      }
       if (!canManageType(actor, type)) {
         return res.status(403).json({ message: 'No permission to delete this order type' });
       }
       const targetOrders = type === 'design' ? data.ordersDesign : data.ordersVideo;
-      const target = targetOrders.find((o: any) => o.id === orderId);
+      const target = targetOrders.find((o: any) => isSameOrderId(o, normalizedOrderId));
       if (!target) {
         return res.status(404).json({ message: 'Order not found' });
       }
@@ -556,18 +582,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
 
       if (type === 'design') {
-        data.ordersDesign = data.ordersDesign.filter((o: any) => o.id !== orderId);
+        data.ordersDesign = data.ordersDesign.filter((o: any) => !isSameOrderId(o, normalizedOrderId));
       } else {
-        data.ordersVideo = data.ordersVideo.filter((o: any) => o.id !== orderId);
+        data.ordersVideo = data.ordersVideo.filter((o: any) => !isSameOrderId(o, normalizedOrderId));
       }
 
       data.deletedOrders = [deletedOrder, ...(data.deletedOrders || [])];
-      data.notifications = data.notifications.filter((n: any) => n.orderId !== orderId);
+      data.notifications = data.notifications.filter((n: any) => Number(n.orderId) !== normalizedOrderId);
 
       pushAudit(data, {
         action: 'soft-delete',
         type,
-        orderId,
+        orderId: normalizedOrderId,
         title: target.title,
         by: actor.name,
         byRole: actor.role,
@@ -578,7 +604,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           {
             id: Date.now() + 10,
             type,
-            orderId,
+            orderId: normalizedOrderId,
             name: `${target.title} - Đã bị xóa bởi ${actor.name}`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             createdAt: new Date().toISOString(),
@@ -595,10 +621,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isValidType(type)) {
         return res.status(400).json({ message: 'Invalid order type' });
       }
+      if (normalizedOrderId == null) {
+        return res.status(400).json({ message: 'Invalid order id' });
+      }
       if (!isAdminActor(actor)) {
         return res.status(403).json({ message: 'Only admin can restore orders' });
       }
-      const deletedIndex = (data.deletedOrders || []).findIndex((o: any) => o.id === orderId && (o.type || type) === type);
+      const deletedIndex = (data.deletedOrders || []).findIndex((o: any) => isSameOrderId(o, normalizedOrderId) && (o.type || type) === type);
       if (deletedIndex < 0) {
         return res.status(404).json({ message: 'Deleted order not found' });
       }
@@ -632,7 +661,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       pushAudit(data, {
         action: 'restore',
         type,
-        orderId,
+        orderId: normalizedOrderId,
         title: restoredOrder.title,
         by: actor.name,
         byRole: actor.role,
@@ -643,22 +672,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isValidType(type)) {
         return res.status(400).json({ message: 'Invalid order type' });
       }
+      if (normalizedOrderId == null) {
+        return res.status(400).json({ message: 'Invalid order id' });
+      }
       if (!isAdminActor(actor)) {
         return res.status(403).json({ message: 'Only admin can permanently delete orders' });
       }
-      const deletedIndex = (data.deletedOrders || []).findIndex((o: any) => o.id === orderId && (o.type || type) === type);
+      const deletedIndex = (data.deletedOrders || []).findIndex((o: any) => isSameOrderId(o, normalizedOrderId) && (o.type || type) === type);
       if (deletedIndex < 0) {
         return res.status(404).json({ message: 'Deleted order not found' });
       }
 
       const deletedOrder = data.deletedOrders[deletedIndex];
       data.deletedOrders.splice(deletedIndex, 1);
-      data.notifications = data.notifications.filter((n: any) => n.orderId !== orderId);
+      data.notifications = data.notifications.filter((n: any) => Number(n.orderId) !== normalizedOrderId);
 
       pushAudit(data, {
         action: 'permanent-delete',
         type,
-        orderId,
+        orderId: normalizedOrderId,
         title: deletedOrder?.title || `Order #${orderId}`,
         by: actor.name,
         byRole: actor.role,
